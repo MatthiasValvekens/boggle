@@ -14,6 +14,11 @@ def client():
     boggle.app.config['SERVER_NAME'] = 'localhost.localdomain'
     boggle.app.config['DEFAULT_COUNTDOWN'] = 0
     boggle.app.config['DISABLE_ASYNC_SCORING'] = True
+    boggle.trigger_scoring._dicts = {
+        'testing': ['AQULGE', 'QLGE', 'ALGEIG', 'DGIEIHLFLO', 'QULGE'],
+        'testing2': []
+    }
+    boggle.trigger_scoring._dict_list = ('testing', 'testing2')
 
     with boggle.app.test_client() as client:
         with boggle.app.app_context():
@@ -116,6 +121,51 @@ def create_player_in_session(client, sess: SessionData = None, name='tester') \
         session=sess, player_id=player_id, player_token=player_token,
         name=name, play_url=play_url
     )
+
+
+def test_dictionaries(client):
+    response = client.get('/dictionaries')
+    rdata = response.get_json()
+    assert rdata['dictionaries'] == ['testing', 'testing2'], rdata
+
+    with boggle.app.app_context():
+        spawn_url = flask.url_for('spawn_session')
+    response = request_json(client, 'post', data={}, url=spawn_url)
+    sess = boggle.BoggleSession.query.get(response.get_json()['session_id'])
+    assert sess.dictionary is None
+
+    response = request_json(
+        client, 'post', data={'dictionary': 'testing'}, url=spawn_url
+    )
+    sess = boggle.BoggleSession.query.get(response.get_json()['session_id'])
+    assert sess.dictionary == 'testing'
+
+    response = request_json(
+        client, 'post', data={'dictionary': 'idontexist'}, url=spawn_url
+    )
+    assert response.status_code == 404, response.get_json()
+
+    # rig things so there is only 1 dictionary
+    old_dicts = boggle.trigger_scoring._dict_list
+    boggle.trigger_scoring._dict_list = ('testing2',)
+
+    # explicit None request
+    response = request_json(
+        client, 'post', data={'dictionary': None}, url=spawn_url
+    )
+    sess = boggle.BoggleSession.query.get(response.get_json()['session_id'])
+    assert sess.dictionary is None
+
+    # empty JSON data -> default
+    response = request_json(client, 'post', data={}, url=spawn_url)
+    sess = boggle.BoggleSession.query.get(response.get_json()['session_id'])
+    assert sess.dictionary == 'testing2'
+
+    # no JSON data -> default
+    response = client.post(spawn_url)
+    sess = boggle.BoggleSession.query.get(response.get_json()['session_id'])
+    assert sess.dictionary == 'testing2'
+    boggle.trigger_scoring._dict_list = old_dicts
 
 
 def test_create_destroy_session(client):

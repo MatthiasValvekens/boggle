@@ -70,6 +70,7 @@ class BoggleSession(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    dictionary = db.Column(db.String(250), nullable=True)
 
     # volatile data
     round_no = db.Column(db.Integer, nullable=False, default=0)
@@ -205,13 +206,41 @@ def gen_player_token(session_id, player_id, pepper):
     return gen_salted_token(b'player', session_id, pepper, player_id)
 
 
+@app.route('/dictionaries', methods=['GET'])
+def list_dictionaries():
+    return {'dictionaries': trigger_scoring.dicts_available}
+
+
 @app.route('/session', methods=['POST'])
 def spawn_session():
-    new_session = BoggleSession()
+    session_settings = request.get_json()
+    dicts_available = trigger_scoring.dicts_available
+    none_requested = False
+    selected_dictionary = None
+    if session_settings is not None:
+        try:
+            selected_dictionary = session_settings['dictionary']
+            # if None is passed in, we disable the dictionary
+            if selected_dictionary is None:
+                none_requested = True
+            elif selected_dictionary not in dicts_available:
+                abort(404,
+                      f'The dictionary {selected_dictionary} is not available')
+        except KeyError:
+            pass
+    if selected_dictionary is None and not none_requested:
+        try:
+            selected_dictionary, = dicts_available
+        except ValueError:
+            # can't select a default
+            pass
+
+    new_session = BoggleSession(dictionary=selected_dictionary)
     db.session.add(new_session)
     db.session.commit()
     pepper = secrets.token_bytes(8).hex()
     sess_id = new_session.id
+
     return {
         'session_id': sess_id,
         'pepper': pepper,
@@ -481,13 +510,28 @@ def retrieve_submitted_words(session_id, round_no):
 
 class DictionaryTask(celery.Task, ABC):
     _dicts = None
+    _dict_list = None
 
     @property
     def dictionaries(self):
         if self._dicts is None:
             dirname = app.config['DICTIONARY_DIR']
             self._dicts = boggle_utils.DictionaryService(dirname)
+            # populate _dict_list too
+            self._dict_list = tuple(self._dicts)
         return self._dicts
+
+    @property
+    def dicts_available(self):
+        # typically, the process calling this function doesn't actually
+        #  need the actual dictionaries, just the list is fine
+        if self._dict_list is None:
+            dirname = app.config['DICTIONARY_DIR']
+            self._dict_list = tuple(
+                dic_name for dic_name, _ in
+                boggle_utils.DictionaryService.list_dictionaries(dirname)
+            )
+        return self._dict_list
 
 
 @celery_app.task(base=DictionaryTask)

@@ -223,3 +223,6 @@ class DictionaryService:
 
     def __contains__(self, item):
         return item in self.__dictionaries
+
+    def __iter__(self):
+        return iter(self.__dictionaries)
