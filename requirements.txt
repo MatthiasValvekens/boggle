@@ -1,0 +1,4 @@
+flask >= 1.1
+SQLAlchemy
+flask_sqlalchemy
+psycopg2-binary
