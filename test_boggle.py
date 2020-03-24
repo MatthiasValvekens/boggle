@@ -50,7 +50,12 @@ def test_board_path():
 
 SessionData = namedtuple(
     'SessionData',
-    ['session_id', 'pepper', 'session_mgmt_token', 'session_token']
+    ['session_id', 'pepper', 'mgmt_token',
+     'session_token', 'manage_url', 'join_url']
+)
+
+GameContext = namedtuple(
+    'GameContext', ['session', 'player_token', 'player_id', 'name', 'play_url']
 )
 
 
@@ -67,13 +72,49 @@ def request_json(client, method, url, *args, data, headers=None, **kwargs):
     return req(url, *args, data=json.dumps(data), headers=req_headers, **kwargs)
 
 
-def create_session(client):
+def create_session(client) -> SessionData:
     with boggle.app.app_context():
         spawn_url = flask.url_for('spawn_session')
     response = client.post(spawn_url)
     rdata = response.get_json()
     assert response.status_code == 201, rdata
-    return SessionData(**rdata)
+    session_id = rdata['session_id']
+    pepper = rdata['pepper']
+    mgmt_token = rdata['session_mgmt_token']
+    session_token = rdata['session_token']
+    with boggle.app.app_context():
+        manage_url = flask.url_for(
+            'manage_session', session_id=session_id, pepper=pepper,
+            mgmt_token=mgmt_token
+        )
+        join_url = flask.url_for(
+            'session_join', session_id=session_id, pepper=pepper,
+            inv_token=session_token
+        )
+    return SessionData(
+        session_id=session_id, pepper=pepper, session_token=session_token,
+        mgmt_token=mgmt_token, manage_url=manage_url, join_url=join_url
+    )
+
+
+def create_player_in_session(client, sess: SessionData = None, name='tester') \
+        -> GameContext:
+    if sess is None:
+        sess = create_session(client)
+    response = request_json(client, 'post', sess.join_url, data={'name': name})
+    rdata = response.get_json()
+    assert response.status_code == 201, rdata
+    assert rdata['name'] == name
+    player_id, player_token = rdata['player_id'], rdata['player_token']
+    with boggle.app.app_context():
+        play_url = flask.url_for(
+            'play', session_id=sess.session_id, pepper=sess.pepper,
+            player_id=player_id, player_token=player_token
+        )
+    return GameContext(
+        session=sess, player_id=player_id, player_token=player_token,
+        name=name, play_url=play_url
+    )
 
 
 def test_create_destroy_session(client):
@@ -83,16 +124,12 @@ def test_create_destroy_session(client):
     ).exists()
     with boggle.app.app_context():
         assert boggle.db.session.query(exists_q).scalar()
-        manage_url = flask.url_for(
-            'manage_session', session_id=sess.session_id, pepper=sess.pepper,
-            mgmt_token=sess.session_mgmt_token
-        )
-    response = client.get(manage_url)
+    response = client.get(sess.manage_url)
     rdata = response.get_json()
     assert rdata['players'] == [], rdata['players']
     assert rdata['status'] == boggle.Status.INITIAL
 
-    response = client.delete(manage_url)
+    response = client.delete(sess.manage_url)
     assert response.status_code == 204, response.get_json()
     with boggle.app.app_context():
         assert not boggle.db.session.query(exists_q).scalar()
@@ -112,38 +149,20 @@ def test_wrong_mgmt_token(client):
 def test_join_session(client):
     sess = create_session(client)
 
-    with boggle.app.app_context():
-        join_url = flask.url_for(
-            'session_join', session_id=sess.session_id, pepper=sess.pepper,
-            inv_token=sess.session_token
-        )
-        assert 'join' in join_url, join_url
-
     # first try posting without supplying a name
-    response = client.post(join_url)
+    response = client.post(sess.join_url)
     rdata = response.get_json()
     assert response.status_code == 400, rdata
-    response = request_json(client, 'post', join_url, data={})
+    response = request_json(client, 'post', sess.join_url, data={})
     rdata = response.get_json()
     assert response.status_code == 400, rdata
 
     # try an actual response
-    response = request_json(client, 'post', join_url, data={'name': 'tester'})
-    rdata = response.get_json()
-    assert response.status_code == 201, rdata
-    assert rdata['name'] == 'tester'
-    player_id, player_token = rdata['player_id'], rdata['player_token']
-
-    with boggle.app.app_context():
-        play_url = flask.url_for(
-            'play', session_id=sess.session_id, pepper=sess.pepper,
-            player_id=player_id, player_token=player_token
-        )
-        assert 'play' in play_url, play_url
-    response = client.get(play_url)
+    gc = create_player_in_session(client, sess)
+    response = client.get(gc.play_url)
     rdata = response.get_json()
     assert response.status_code == 200, rdata
-    assert rdata['players'][0]['player_id'] == player_id, rdata['players']
+    assert rdata['players'][0]['player_id'] == gc.player_id, rdata['players']
     assert rdata['status'] == boggle.Status.INITIAL
 
 
@@ -152,7 +171,20 @@ def test_wrong_player_token(client):
     with boggle.app.app_context():
         play_url = flask.url_for(
             'play', session_id=sess.session_id, pepper=sess.pepper,
-            player_id=1, player_token='deadbeef'
+            player_id=28, player_token='deadbeef'
+        )
+
+    response = request_json(
+        client, 'put', play_url, data={'round_no': 1, 'words': []}
+    )
+    assert response.status_code == 403, response.get_json()
+
+    # try again with a real player id
+    gc = create_player_in_session(client, sess)
+    with boggle.app.app_context():
+        play_url = flask.url_for(
+            'play', session_id=sess.session_id, pepper=sess.pepper,
+            player_id=gc.player_id, player_token='deadbeef'
         )
 
     response = request_json(
@@ -162,40 +194,23 @@ def test_wrong_player_token(client):
 
 
 def test_single_player_scenario(client):
-    sess = create_session(client)
-    with boggle.app.app_context():
-        manage_url = flask.url_for(
-            'manage_session', session_id=sess.session_id, pepper=sess.pepper,
-            mgmt_token=sess.session_mgmt_token
-        )
-        join_url = flask.url_for(
-            'session_join', session_id=sess.session_id, pepper=sess.pepper,
-            inv_token=sess.session_token
-        )
-
-    response = request_json(client, 'post', join_url, data={'name': 'tester'})
-    rdata = response.get_json()
-    player_id, player_token = rdata['player_id'], rdata['player_token']
+    gc = create_player_in_session(client)
 
     # start the session
-    response = client.post(manage_url)
+    response = client.post(gc.session.manage_url)
     assert response.status_code == 200
     round_no = response.get_json()['round_no']
     assert round_no == 1
 
     pending_q = boggle.BoggleSession._submissions_pending(
-        sess.session_id, round_no
+        gc.session.session_id, round_no
     )
     with boggle.app.app_context():
-        play_url = flask.url_for(
-            'play', session_id=sess.session_id, pepper=sess.pepper,
-            player_id=player_id, player_token=player_token
-        )
         # check that submissions are pending now
         assert boggle.db.session.query(pending_q).scalar()
 
     # verify that the round is underway
-    response = client.get(play_url)
+    response = client.get(gc.play_url)
     rdata = response.get_json()
     assert response.status_code == 200, rdata
     assert rdata['status'] == boggle.Status.PLAYING
@@ -205,14 +220,14 @@ def test_single_player_scenario(client):
 
     # first, attempt a submission for the wrong round
     response = request_json(
-        client, 'put', play_url, data={
+        client, 'put', gc.play_url, data={
             'round_no': 27, 'words': words_to_submit
         }
     )
     assert response.status_code == 409
 
     response = request_json(
-        client, 'put', play_url, data={
+        client, 'put', gc.play_url, data={
             'round_no': round_no, 'words': words_to_submit
         }
     )
@@ -220,7 +235,7 @@ def test_single_player_scenario(client):
 
     # run a specific exists() for the submission we just made
     exists_q = boggle.db.session.query(boggle.Submission).filter(
-        boggle.Submission.player_id == player_id,
+        boggle.Submission.player_id == gc.player_id,
         boggle.Submission.round_no == round_no
     ).exists()
     with boggle.app.app_context():
@@ -229,12 +244,12 @@ def test_single_player_scenario(client):
         assert boggle.db.session.query(~pending_q).scalar()
 
     # trigger scoring by making a GET request
-    response = client.get(play_url)
+    response = client.get(gc.play_url)
     rdata = response.get_json()
     assert response.status_code == 200, rdata
     assert rdata['status'] == boggle.Status.SCORED
     score_data, = rdata['scores']
-    assert score_data['player'] == {'player_id': player_id, 'name': 'tester'}
+    assert score_data['player'] == {'player_id': gc.player_id, 'name': gc.name}
     scored_words = score_data['words']
     # the original submission contained two words that are equivalent in Boggle
     #  so we should get back 3 items, in alphabetical order
