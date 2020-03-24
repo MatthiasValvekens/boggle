@@ -163,12 +163,13 @@ class Word(db.Model):
     def score_json(self):
         return {
             'score': self.score,
+            'word': self.word,
             'duplicate': self.duplicate,
             'dictionary_valid': self.dictionary_valid,
             # this is a bit silly, since we'll just reencode
             #  it right away, but it's the most straightforward
             #  way to go about it
-            'path_array': json.loads(self.path_array)
+            'path': json.loads(self.path_array)
         }
 
     # noinspection PyUnusedLocal
@@ -336,27 +337,24 @@ def session_state(session_id, pepper):
     )
     response['board'] = {'cols': cols, 'rows': rows, 'dice': board}
 
-    if now < round_end:
+    all_submitted = db.session.query(~sess.submissions_pending()).scalar()
+    if now < round_end and not all_submitted:
         response['status'] = Status.PLAYING
         return response
 
     grace_period = timedelta(seconds=app.config['GRACE_PERIOD_SECONDS'])
-    if now <= round_end + grace_period:
-        # check if everyone submitted
-        #  i.e. check if there exists a player in the session
-        #  who hasn't submitted yet
-        can_score = db.session.query(sess.submissions_pending()).scalar()
-    else:
-        # grace period is over, so we force scoring if necessary
-        can_score = True
-
-    if can_score:
+    if all_submitted or now > round_end + grace_period:
+        # if grace period is over, force scoring
         scores = trigger_scoring(session_id, round_no, board)
+
+        # if scores have been computed by now, return them
         if scores is not None:
             response['status'] = Status.SCORED
             response['scores'] = scores
             return response
 
+    # either the scoring computation is running, or
+    #  not everyone has submitted yet, and the grace period is still in effect
     response['status'] = Status.SCORING
     return response
 
@@ -400,9 +398,9 @@ def play(session_id, pepper, player_id, player_token):
         return abort(409, description=errmsg)
     submission_obj = Submission(round_no=round_no)
     current_player.submissions.append(submission_obj)
-    for word in words:
+    for word in set(boggle_utils.BoggleWord(w) for w in words):
         # TODO can this be done in one append()?
-        submission_obj.words.append(Word(word=word))
+        submission_obj.words.append(Word(word=str(word)))
     try:
         db.session.commit()
     except IntegrityError:
@@ -426,9 +424,10 @@ def words_by_player(word_query):
 def format_scores(by_player): 
     for (pl_id, pl_name), words in by_player.items():
         yield {
-            'player_id': pl_id,
-            'name': pl_name,
-            'words': [w.score_json() for w in words]
+            'player': {'player_id': pl_id, 'name': pl_name},
+            'words': sorted(
+                (w.score_json() for w in words), key=lambda w: w['word']
+            )
         } 
 
 

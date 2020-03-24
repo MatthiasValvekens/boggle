@@ -22,6 +22,25 @@ def roll(seed, board_dims=(4, 4), dice_config=DICE_CONFIG):
     return [[ch for ch in islice(board_iter, cols)] for _ in range(rows)]
 
 
+class BoggleWord:
+    """
+    Utility wrapper to force Boggle words to be upper case, and compare
+    with the QU -> Q substitution.
+    """
+    def __init__(self, word):
+        self.word = word = word.upper()
+        self._qnormd = word.replace('QU', 'Q')
+
+    def __str__(self):
+        return self.word
+
+    def __eq__(self, other):
+        return self._qnormd == self._qnormd
+
+    def __hash__(self):
+        return hash(self._qnormd)
+
+
 @dataclass(frozen=True)
 class Letter:
     i: int

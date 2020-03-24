@@ -161,7 +161,7 @@ def test_wrong_player_token(client):
     assert response.status_code == 403, response.get_json()
 
 
-def test_single_player_submission(client):
+def test_single_player_scenario(client):
     sess = create_session(client)
     with boggle.app.app_context():
         manage_url = flask.url_for(
@@ -193,7 +193,15 @@ def test_single_player_submission(client):
         )
         # check that submissions are pending now
         assert boggle.db.session.query(pending_q).scalar()
-    words_to_submit = ['ALGE', 'ALGEIG', 'DGIEIHLFLO']
+
+    # verify that the round is underway
+    response = client.get(play_url)
+    rdata = response.get_json()
+    assert response.status_code == 200, rdata
+    assert rdata['status'] == boggle.Status.PLAYING
+    assert 'board' in rdata
+
+    words_to_submit = ['AQULGE', 'QLGE', 'ALGEIG', 'DGIEIHLFLO', 'QULGE']
 
     # first, attempt a submission for the wrong round
     response = request_json(
@@ -219,3 +227,43 @@ def test_single_player_submission(client):
         assert boggle.db.session.query(exists_q).scalar()
         # check that submissions are no longer pending
         assert boggle.db.session.query(~pending_q).scalar()
+
+    # trigger scoring by making a GET request
+    response = client.get(play_url)
+    rdata = response.get_json()
+    assert response.status_code == 200, rdata
+    assert rdata['status'] == boggle.Status.SCORED
+    score_data, = rdata['scores']
+    assert score_data['player'] == {'player_id': player_id, 'name': 'tester'}
+    scored_words = score_data['words']
+    # the original submission contained two words that are equivalent in Boggle
+    #  so we should get back 3 items, in alphabetical order
+    word1, word2, word3, word4 = scored_words
+
+    assert word1['word'] == 'ALGEIG'
+    assert word1['score'] == 0
+    assert word1['path'] is None
+    assert not word1['duplicate']
+    assert word1['dictionary_valid']
+
+    # we supplied a version with QU, so it should be returned as such
+    assert word2['word'] == 'AQULGE'
+    # QU counts as two separate letters for scoring purposes
+    assert word2['score'] == 3
+    # ... but the path should have length 5
+    assert len(word2['path']) == 5
+    assert not word2['duplicate']
+    assert word2['dictionary_valid']
+
+    assert word3['word'] == 'DGIEIHLFLO'
+    assert word3['score'] == 11
+    assert len(word3['path']) == 10
+    assert not word3['duplicate']
+    assert word3['dictionary_valid']
+
+    # if both a Q-version and a non-Q version are submitted,
+    # the actual value returned is undefined
+    #  this corner case is probably irrelevant in practice, since I doubt
+    #  that there are many dictionary words that are valid both with and
+    #  without Q
+    assert word4['word'] in ('QLGE', 'QULGE')
