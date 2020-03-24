@@ -238,7 +238,7 @@ def manage_session(session_id, pepper, mgmt_token):
     if request.method == 'DELETE':
         BoggleSession.query.filter(BoggleSession.id == session_id).delete()
         db.session.commit()
-        return {}, 204
+        return jsonify({}), 204
 
     if request.method == 'POST':
         # prepare a new round
@@ -369,17 +369,31 @@ def session_state(session_id, pepper):
     return response
 
 
-@app.route(play_url, methods=['GET', 'PUT'])
+@app.route(play_url, methods=['GET', 'PUT', 'DELETE'])
 def play(session_id, pepper, player_id, player_token):
     check_player_token(session_id, pepper, player_id, player_token)
+
+    # the existence check happens later, so in principle players who
+    #  left the session can still watch
     if request.method == 'GET':
         return session_state(session_id, pepper)
 
     sess = BoggleSession.for_update(session_id, allow_nonexistent=True)
-    current_player = Player.query.get_or_404(player_id)
-    now = datetime.utcnow()
     if sess is None:
         return abort(410, description="Session has ended")
+
+    if request.method == 'DELETE':
+        # TODO can we somehow queue this in an elegant way?
+        if sess.round_scored is False:
+            abort(409, description="Cannot leave mid-scoring")
+        Player.query.filter(Player.id == session_id).delete()
+        db.session.commit()
+        return jsonify({}), 204
+
+    now = datetime.utcnow()
+    current_player = Player.query.filter(Player.id == player_id).one_or_none()
+    if current_player is None:
+        abort(410, description="You cannot submit after leaving")
 
     round_start = sess.round_start
     if round_start is None:
@@ -419,7 +433,7 @@ def play(session_id, pepper, player_id, player_token):
         db.session.rollback()
         return abort(409, description="You can only submit once")
 
-    return {}, 201
+    return jsonify({}), 201
 
 
 def words_by_player(word_query):
@@ -477,9 +491,9 @@ def trigger_scoring(session_id, round_no, board):
         return []
     boggle_utils.score_players(by_player.values(), board)
 
-    # TODO how necessary is it to run this select for update [...]
-    #  again?
-    sess = BoggleSession.for_update(session_id)
+    sess = BoggleSession.for_update(session_id, allow_nonexistent=True)
+    if sess is None:
+        abort(410, description="Session was killed unexpectedly")
     # this update doesn't involve any cross-table shenanigans,
     #  so bulk_save_objects is safe to use
     db.session.bulk_save_objects(chain(*by_player.values()))

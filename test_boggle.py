@@ -176,6 +176,20 @@ def test_join_session(client):
     assert rdata['players'][0]['player_id'] == gc.player_id, rdata['players']
     assert rdata['status'] == boggle.Status.INITIAL
 
+    # this should fail since the game hasn't started yet
+    response = client.put(gc.play_url)
+    assert response.status_code == 409
+
+    # try leaving
+    response = client.delete(gc.play_url)
+    assert response.status_code == 204
+    # GET should still work
+    response = client.get(gc.play_url)
+    assert response.status_code == 200
+    # ... but PUT shouldn't: note the difference in status code
+    response = client.put(gc.play_url)
+    assert response.status_code == 410
+
 
 def test_wrong_player_token(client):
     sess = create_session(client)
