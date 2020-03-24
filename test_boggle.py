@@ -293,3 +293,34 @@ def test_single_player_scenario(client):
     #  that there are many dictionary words that are valid both with and
     #  without Q
     assert word4['word'] in ('QLGE', 'QULGE')
+
+
+def test_double_submission(client):
+    gc = create_player_in_session(client)
+
+    def attempt_submit(words, round_no):
+        resp = request_json(
+            client, 'put', gc.play_url,
+            data={'round_no': round_no, 'words': words}
+        )
+        assert resp.status_code == 201
+
+        # no double submissions?
+        resp = request_json(
+            client, 'put', gc.play_url,
+            data={'round_no': round_no, 'words': words}
+        )
+        assert resp.status_code == 409
+
+    # start the session
+    response = client.post(gc.session.manage_url)
+    assert response.status_code == 200
+
+    # attempt 1: normal submission
+    attempt_submit(
+        ['AQULGE', 'ALGEIG', 'DGIEIHLFLO'], response.get_json()['round_no']
+    )
+    # attempt 2: empty submission (in a new round)
+    response = client.post(gc.session.manage_url)
+    assert response.status_code == 200
+    attempt_submit([], response.get_json()['round_no'])
