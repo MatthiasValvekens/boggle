@@ -32,7 +32,7 @@ class DefaultConfig:
     DICE_CONFIG = boggle_utils.DICE_CONFIG
 
 
-app.config.from_object(DefaultConfig)
+app.config.from_object(DefaultConfig())
 app.config['SECRET_KEY'] = server_key = secrets.token_bytes(32)
 app.config.from_envvar('BOGGLE_CONFIG', silent=True)
 db = SQLAlchemy(app)
@@ -40,7 +40,26 @@ db = SQLAlchemy(app)
 DATE_FORMAT_STR = '%Y-%m-%d %H:%M:%s'
 MAX_NAME_LENGTH = 250
 
+
+def init_db():
+    """
+    Set up the database schema and/or truncate all sessions.
+    """
+    # create tables as necessary
+    db.create_all()
+    con = db.engine
+    with con.begin():
+        # truncate all sessions on every restart
+        con.execute('TRUNCATE boggle_session RESTART IDENTITY CASCADE;')
+
+
+# adding before_first_request to init_db would cause this to be run
+#  for every worker, which isn't what we want.
+# In prod, a a CLI command seems to involve the least amount of hassle
+app.cli.command('initdb')(init_db)
+
 if __name__ == '__main__':
+    init_db()
     app.run()
 
 
@@ -50,16 +69,6 @@ def json_err_handler(error_code):
 
 for err in (400, 403, 404, 409, 410):
     app.register_error_handler(err, json_err_handler(err))
-
-
-@app.before_first_request
-def init_db():
-    # create tables as necessary
-    db.create_all()
-    con = db.engine
-    with con.begin():
-        # truncate all sessions on every restart
-        con.execute('TRUNCATE boggle_session RESTART IDENTITY CASCADE;')
 
 
 class BoggleSession(db.Model):
