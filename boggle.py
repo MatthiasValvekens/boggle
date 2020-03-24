@@ -231,12 +231,11 @@ def manage_session(session_id, pepper, mgmt_token):
         sess.round_scored = None
         # TODO: make this customisable in the request
         sess.round_start = datetime.utcnow() + timedelta(
-            seconds=app.config.DEFAULT_COUNTDOWN
+            seconds=app.config['DEFAULT_COUNTDOWN']
         )
         sess.round_no += 1
         db.session.commit()
-        info = {'round_no': sess.round_no, 'round_start': sess.round_start}
-        return info, 201
+        return {'round_no': sess.round_no, 'round_start': sess.round_start}
 
 
 @app.route(session_url_base + '/join/<inv_token>', methods=['POST'])
@@ -296,8 +295,11 @@ def session_state(session_id, pepper):
         return response
 
     round_no = sess.round_no
-    round_seed = (str(round_no) + pepper).encode('ascii') + server_key
-    duration = timedelta(minutes=app.config.ROUND_DURATION_MINUTES)
+    if app.config['TESTING']:
+        round_seed = app.config['TESTING_SEED']
+    else:
+        round_seed = (str(round_no) + pepper).encode('ascii') + server_key
+    duration = timedelta(minutes=app.config['ROUND_DURATION_MINUTES'])
     round_end = round_start + duration
     now = datetime.utcnow()
     response['round_start'] = round_start.strftime(DATE_FORMAT_STR)
@@ -308,10 +310,11 @@ def session_state(session_id, pepper):
         response['status'] = Status.PRE_START
         return response
 
-    cols = app.config.BOARD_COLS
-    rows = app.config.BOARD_ROWS
+    cols = app.config['BOARD_COLS']
+    rows = app.config['BOARD_ROWS']
     board = boggle_utils.roll(
-        round_seed, board_dims=(rows, cols), dice_config=app.config.DICE_CONFIG
+        round_seed, board_dims=(rows, cols),
+        dice_config=app.config['DICE_CONFIG']
     )
     response['board'] = {'cols': cols, 'rows': rows, 'dice': board}
 
@@ -319,7 +322,7 @@ def session_state(session_id, pepper):
         response['status'] = Status.PLAYING
         return response
 
-    grace_period = timedelta(seconds=app.config.GRACE_PERIOD_SECONDS)
+    grace_period = timedelta(seconds=app.config['GRACE_PERIOD_SECONDS'])
     if now <= round_end + grace_period:
         # check if everyone submitted
         #  i.e. check if there exists a player in the session
@@ -366,8 +369,8 @@ def play(session_id, pepper, player_id, player_token):
 
     round_no = sess.round_no
     deadline = round_start + timedelta(
-        minutes=app.config.ROUND_DURATION_MINUTES,
-        seconds=app.config.GRACE_PERIOD_SECONDS
+        minutes=app.config['ROUND_DURATION_MINUTES'],
+        seconds=app.config['GRACE_PERIOD_SECONDS']
     )
     if sess.round_scored is not None or now > deadline:
         return abort(409, description="Round already ended")
@@ -377,7 +380,7 @@ def play(session_id, pepper, player_id, player_token):
         return abort(400, description="Malformed submission data")
     try:
         words = submission_json['words']
-        round_no_supplied = submission_json['round_no_supplied']
+        round_no_supplied = submission_json['round_no']
     except KeyError:
         return abort(400, desription="Submission not properly structured")
     if round_no != round_no_supplied:
