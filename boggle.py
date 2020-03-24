@@ -389,10 +389,10 @@ def play(session_id, pepper, player_id, player_token):
         )
         return abort(409, description=errmsg)
     submission_obj = Submission(round_no=round_no)
-    current_player.append(submission_obj)
+    current_player.submissions.append(submission_obj)
     for word in words:
         # TODO can this be done in one append()?
-        current_player.submissions.append(Word(word=word))
+        submission_obj.words.append(Word(word=word))
     try:
         db.session.commit()
     except IntegrityError:

@@ -10,7 +10,9 @@ import flask
 @pytest.fixture
 def client():
     boggle.app.config['TESTING'] = True
+    boggle.app.config['TESTING_SEED'] = 5
     boggle.app.config['SERVER_NAME'] = 'localhost.localdomain'
+    boggle.app.config['DEFAULT_COUNTDOWN'] = 0
 
     with boggle.app.test_client() as client:
         with boggle.app.app_context():
@@ -44,8 +46,6 @@ def test_board_path():
     assert len(paths) == 0
     paths = tuple_paths('BLHIE', DEFAULT_TESTING_BOARD)
     assert len(paths) == 0
-
-
 
 
 SessionData = namedtuple(
@@ -134,3 +134,52 @@ def test_join_session(client):
     assert response.status_code == 200, rdata
     assert rdata['players'][0]['player_id'] == player_id, rdata['players']
     assert rdata['status'] == boggle.Status.INITIAL
+
+
+def test_single_player_submission(client):
+    sess = create_session(client)
+    with boggle.app.app_context():
+        manage_url = flask.url_for(
+            'manage_session', session_id=sess.session_id, pepper=sess.pepper,
+            mgmt_token=sess.session_mgmt_token
+        )
+        join_url = flask.url_for(
+            'session_join', session_id=sess.session_id, pepper=sess.pepper,
+            inv_token=sess.session_token
+        )
+
+    response = request_json(client, 'post', join_url, data={'name': 'tester'})
+    rdata = response.get_json()
+    player_id, player_token = rdata['player_id'], rdata['player_token']
+
+    # start the session
+    response = client.post(manage_url)
+    assert response.status_code == 200
+    round_no = response.get_json()['round_no']
+    assert round_no == 1
+
+    with boggle.app.app_context():
+        play_url = flask.url_for(
+            'play', session_id=sess.session_id, pepper=sess.pepper,
+            player_id=player_id, player_token=player_token
+        )
+    words_to_submit = ['ALGE', 'ALGEIG', 'DGIEIHLFLO']
+    response = request_json(
+        client, 'put', play_url, data={
+            'round_no': 27, 'words': words_to_submit
+        }
+    )
+    assert response.status_code == 409
+    response = request_json(
+        client, 'put', play_url, data={
+            'round_no': round_no, 'words': words_to_submit
+        }
+    )
+    assert response.status_code == 201
+
+    exists_q = boggle.db.session.query(boggle.Submission).filter(
+        boggle.Submission.player_id == player_id,
+        boggle.Submission.round_no == round_no
+    ).exists()
+    with boggle.app.app_context():
+        assert boggle.db.session.query(exists_q).scalar()
