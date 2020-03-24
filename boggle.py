@@ -1,3 +1,4 @@
+import logging
 import secrets
 import hashlib
 import hmac
@@ -16,25 +17,17 @@ from sqlalchemy import UniqueConstraint, select
 from flask_sqlalchemy import SQLAlchemy
 
 import boggle_utils
+import config
 
+from boggle_celery import app as celery_app
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 
-class DefaultConfig:
-    SQLALCHEMY_DATABASE_URI = 'postgresql://boggle@localhost:5432/boggle'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    BOARD_ROWS = 4
-    BOARD_COLS = 4
-    ROUND_DURATION_MINUTES = 3
-    GRACE_PERIOD_SECONDS = 10
-    DEFAULT_COUNTDOWN_SECONDS = 15
-    DICE_CONFIG = boggle_utils.DICE_CONFIG
-
-
-app.config.from_object(DefaultConfig())
+app.config.from_object(config)
 app.config['SECRET_KEY'] = server_key = secrets.token_bytes(32)
-app.config.from_envvar('BOGGLE_CONFIG', silent=True)
 db = SQLAlchemy(app)
 
 DATE_FORMAT_STR = '%Y-%m-%d %H:%M:%s'
@@ -362,15 +355,28 @@ def session_state(session_id, pepper):
         return response
 
     grace_period = timedelta(seconds=app.config['GRACE_PERIOD_SECONDS'])
-    if all_submitted or now > round_end + grace_period:
-        # if grace period is over, force scoring
-        scores = trigger_scoring(session_id, round_no, board)
 
+    if (all_submitted or now > round_end + grace_period) \
+            and sess.round_scored is None:
+
+        # mainly for testing purposes
+        if app.config['DISABLE_ASYNC_SCORING']:
+            trigger_scoring(session_id, round_no, round_seed)
+            # refresh session object
+            sess = BoggleSession.query \
+                .filter(BoggleSession.id == session_id).one_or_none()
+        else:
+            # asynchronously queue scoring
+            trigger_scoring.delay(session_id, round_no, round_seed)
+
+    if sess.round_scored:
         # if scores have been computed by now, return them
-        if scores is not None:
-            response['status'] = Status.SCORED
-            response['scores'] = scores
-            return response
+        scores = format_scores(
+            retrieve_submitted_words(session_id, round_no)
+        )
+        response['status'] = Status.SCORED
+        response['scores'] = list(scores)
+        return response
 
     # either the scoring computation is running, or
     #  not everyone has submitted yet, and the grace period is still in effect
@@ -445,16 +451,7 @@ def play(session_id, pepper, player_id, player_token):
     return jsonify({}), 201
 
 
-def words_by_player(word_query):
-    by_player = defaultdict(list)
-
-    for w, player_id, player_name in word_query.all():
-        by_player[(player_id, player_name)].append(w)
-
-    return by_player
-
-
-def format_scores(by_player): 
+def format_scores(by_player):
     for (pl_id, pl_name), words in by_player.items():
         yield {
             'player': {'player_id': pl_id, 'name': pl_name},
@@ -464,28 +461,39 @@ def format_scores(by_player):
         } 
 
 
-# FIXME should use sth like Celery with distributed locking
-# TODO dictionary support
-def trigger_scoring(session_id, round_no, board):
-    # we re-query the session to mitigate race conditions
-    #  on round_scored
-    sess = BoggleSession.for_update(session_id)
-    word_query = Word.query\
-        .join(Word.submission)\
-        .join(Submission.player)\
-        .filter(Player.session_id == session_id)\
-        .filter(Submission.round_no == round_no)\
+def retrieve_submitted_words(session_id, round_no):
+
+    word_query = Word.query \
+        .join(Word.submission) \
+        .join(Submission.player) \
+        .filter(Player.session_id == session_id) \
+        .filter(Submission.round_no == round_no) \
         .add_columns(Player.id, Player.name)
 
+    by_player = defaultdict(list)
+
+    for w, player_id, player_name in word_query.all():
+        by_player[(player_id, player_name)].append(w)
+
+    return by_player
+
+
+@celery_app.task
+def trigger_scoring(session_id, round_no, round_seed):
+    logger.debug(
+        f"Received scoring request for session {session_id}, round {round_no}."
+    )
+    sess = BoggleSession.for_update(session_id)
+
     if sess.round_scored is not None:
+        logger.debug(
+            f"Scoring is already underway or finished for session {session_id},"
+            f" round {round_no}. Exiting early."
+        )
         # either we're already done scoring, or a computation is running
         # regardless, we should relinquish the lock on the session table
         db.session.commit()
-        if sess.round_scored:
-            return list(format_scores(words_by_player(word_query)))
-        else:
-            # scores not available yet
-            return
+        return
 
     # mark score computation as started and commit
     #  to release the for update lock
@@ -493,11 +501,19 @@ def trigger_scoring(session_id, round_no, board):
     db.session.commit()
 
     # run the scoring logic
-    by_player = words_by_player(word_query)
+    by_player = retrieve_submitted_words(session_id, round_no)
     # either there were no submissions, or the session was nixed
     #  in between calls
     if not by_player:
         return []
+
+    cols = app.config['BOARD_COLS']
+    rows = app.config['BOARD_ROWS']
+    board = boggle_utils.roll(
+        round_seed, board_dims=(rows, cols),
+        dice_config=app.config['DICE_CONFIG']
+    )
+
     boggle_utils.score_players(by_player.values(), board)
 
     sess = BoggleSession.for_update(session_id, allow_nonexistent=True)
@@ -508,4 +524,4 @@ def trigger_scoring(session_id, round_no, board):
     db.session.bulk_save_objects(chain(*by_player.values()))
     sess.round_scored = True
     db.session.commit()
-    return list(format_scores(by_player))
+    logger.debug(f"Finished scoring session {session_id}, round {round_no}.")

@@ -13,6 +13,7 @@ def client():
     boggle.app.config['TESTING_SEED'] = 5
     boggle.app.config['SERVER_NAME'] = 'localhost.localdomain'
     boggle.app.config['DEFAULT_COUNTDOWN'] = 0
+    boggle.app.config['DISABLE_ASYNC_SCORING'] = True
 
     with boggle.app.test_client() as client:
         with boggle.app.app_context():
