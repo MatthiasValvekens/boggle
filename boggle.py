@@ -12,7 +12,7 @@ from flask import Flask, abort, request, jsonify
 from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.orm import validates
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, select
 from flask_sqlalchemy import SQLAlchemy
 
 import boggle_utils
@@ -80,6 +80,24 @@ class BoggleSession(db.Model):
             return q.one_or_none()
         else:
             return q.one()
+
+    # included for easy testing access
+    @classmethod
+    def _submissions_pending(cls, session_id, round_no):
+        submissions = select([Submission.id, Submission.player_id])\
+            .where(Submission.round_no == round_no).alias()
+        q = Player.query.outerjoin(
+                submissions, submissions.c.player_id == Player.id
+            ).filter(Player.session_id == session_id)\
+            .filter(submissions.c.id.is_(None))
+        return q.exists()
+
+    def submissions_pending(self):
+        """
+        Build an exists() query to check if there are players in the session
+        that still have to submit a score.
+        """
+        return self._submissions_pending(self.id, self.round_no)
 
     def __repr__(self):
         fmt_ts = self.created.datetime.now().strftime(DATE_FORMAT_STR)
@@ -282,7 +300,7 @@ def check_player_token(session_id, pepper, player_id, player_token):
 
 
 def session_state(session_id, pepper):
-    sess = BoggleSession.query.get_or_404(session_id)
+    sess: BoggleSession = BoggleSession.query.get_or_404(session_id)
     players = Player.query.with_parent(sess).all()
     response = {
         'created': sess.created,
@@ -327,15 +345,7 @@ def session_state(session_id, pepper):
         # check if everyone submitted
         #  i.e. check if there exists a player in the session
         #  who hasn't submitted yet
-        still_waiting = Player.query \
-            .filter(Player.session_id == session_id) \
-            .filter(
-                ~Submission.query.where(
-                    (Submission.player_id == Player.id)
-                    & (Submission.round_no == round_no)
-                ).exists()
-            ).exists()
-        can_score = db.session.query(still_waiting).scalar()
+        can_score = db.session.query(sess.submissions_pending()).scalar()
     else:
         # grace period is over, so we force scoring if necessary
         can_score = True

@@ -98,6 +98,17 @@ def test_create_destroy_session(client):
         assert not boggle.db.session.query(exists_q).scalar()
 
 
+def test_wrong_mgmt_token(client):
+    sess = create_session(client)
+    with boggle.app.app_context():
+        manage_url = flask.url_for(
+            'manage_session', session_id=sess.session_id, pepper=sess.pepper,
+            mgmt_token='deadbeef'
+        )
+    response = client.delete(manage_url)
+    assert response.status_code == 403, response.get_json()
+
+
 def test_join_session(client):
     sess = create_session(client)
 
@@ -136,6 +147,20 @@ def test_join_session(client):
     assert rdata['status'] == boggle.Status.INITIAL
 
 
+def test_wrong_player_token(client):
+    sess = create_session(client)
+    with boggle.app.app_context():
+        play_url = flask.url_for(
+            'play', session_id=sess.session_id, pepper=sess.pepper,
+            player_id=1, player_token='deadbeef'
+        )
+
+    response = request_json(
+        client, 'put', play_url, data={'round_no': 1, 'words': []}
+    )
+    assert response.status_code == 403, response.get_json()
+
+
 def test_single_player_submission(client):
     sess = create_session(client)
     with boggle.app.app_context():
@@ -158,18 +183,26 @@ def test_single_player_submission(client):
     round_no = response.get_json()['round_no']
     assert round_no == 1
 
+    pending_q = boggle.BoggleSession._submissions_pending(
+        sess.session_id, round_no
+    )
     with boggle.app.app_context():
         play_url = flask.url_for(
             'play', session_id=sess.session_id, pepper=sess.pepper,
             player_id=player_id, player_token=player_token
         )
+        # check that submissions are pending now
+        assert boggle.db.session.query(pending_q).scalar()
     words_to_submit = ['ALGE', 'ALGEIG', 'DGIEIHLFLO']
+
+    # first, attempt a submission for the wrong round
     response = request_json(
         client, 'put', play_url, data={
             'round_no': 27, 'words': words_to_submit
         }
     )
     assert response.status_code == 409
+
     response = request_json(
         client, 'put', play_url, data={
             'round_no': round_no, 'words': words_to_submit
@@ -177,9 +210,12 @@ def test_single_player_submission(client):
     )
     assert response.status_code == 201
 
+    # run a specific exists() for the submission we just made
     exists_q = boggle.db.session.query(boggle.Submission).filter(
         boggle.Submission.player_id == player_id,
         boggle.Submission.round_no == round_no
     ).exists()
     with boggle.app.app_context():
         assert boggle.db.session.query(exists_q).scalar()
+        # check that submissions are no longer pending
+        assert boggle.db.session.query(~pending_q).scalar()
