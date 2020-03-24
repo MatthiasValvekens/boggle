@@ -171,7 +171,7 @@ def score_players(words_by_player, board, dictionary=None):
         blacklisted = w.word in blacklist
         # non-dictionary words do get a nonzero score, since they
         #  may be manually approved (TODO)
-        w.score = score if not blacklisted else 0,
+        w.score = score if not blacklisted else 0
         # path may still be valid, of course
         # in that case, we wasted a tiny bit of resources
         w.duplicate = blacklisted

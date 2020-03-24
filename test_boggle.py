@@ -78,10 +78,15 @@ def request_json(client, method, url, *args, data, headers=None, **kwargs):
     return req(url, *args, data=json.dumps(data), headers=req_headers, **kwargs)
 
 
-def create_session(client) -> SessionData:
+def create_session(client, dictionary=None) -> SessionData:
     with boggle.app.app_context():
         spawn_url = flask.url_for('spawn_session')
-    response = client.post(spawn_url)
+    if dictionary is None:
+        response = client.post(spawn_url)
+    else:
+        response = request_json(
+            client, 'post', spawn_url, data={'dictionary': dictionary}
+        )
     rdata = response.get_json()
     assert response.status_code == 201, rdata
     session_id = rdata['session_id']
@@ -103,10 +108,10 @@ def create_session(client) -> SessionData:
     )
 
 
-def create_player_in_session(client, sess: SessionData = None, name='tester') \
-        -> GameContext:
+def create_player_in_session(client, sess: SessionData = None, name='tester',
+                             **kwargs) -> GameContext:
     if sess is None:
-        sess = create_session(client)
+        sess = create_session(client, **kwargs)
     response = request_json(client, 'post', sess.join_url, data={'name': name})
     rdata = response.get_json()
     assert response.status_code == 201, rdata
@@ -270,7 +275,7 @@ def test_wrong_player_token(client):
 
 
 def test_single_player_scenario(client):
-    gc = create_player_in_session(client)
+    gc = create_player_in_session(client, dictionary='testing')
 
     # start the session
     response = client.post(gc.session.manage_url)
@@ -292,7 +297,9 @@ def test_single_player_scenario(client):
     assert rdata['status'] == boggle.Status.PLAYING
     assert 'board' in rdata
 
-    words_to_submit = ['AQULGE', 'QLGE', 'ALGEIG', 'DGIEIHLFLO', 'QULGE']
+    words_to_submit = [
+        'AQULGE', 'QLGE', 'ALGEIG', 'DGIEIHLFLO', 'QULGE', 'TLEGI'
+    ]
 
     # first, attempt a submission for the wrong round
     response = request_json(
@@ -329,7 +336,7 @@ def test_single_player_scenario(client):
     scored_words = score_data['words']
     # the original submission contained two words that are equivalent in Boggle
     #  so we should get back 3 items, in alphabetical order
-    word1, word2, word3, word4 = scored_words
+    word1, word2, word3, word4, word5 = scored_words
 
     assert word1['word'] == 'ALGEIG'
     assert word1['score'] == 0
@@ -358,6 +365,11 @@ def test_single_player_scenario(client):
     #  that there are many dictionary words that are valid both with and
     #  without Q
     assert word4['word'] in ('QLGE', 'QULGE')
+
+    assert word5['word'] == 'TLEGI'
+    assert word5['score'] == 2
+    assert not word5['duplicate']
+    assert not word5['dictionary_valid']
 
 
 def test_double_submission(client):

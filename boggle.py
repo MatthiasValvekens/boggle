@@ -539,7 +539,7 @@ def trigger_scoring(session_id, round_no, round_seed):
     logger.debug(
         f"Received scoring request for session {session_id}, round {round_no}."
     )
-    sess = BoggleSession.for_update(session_id)
+    sess: BoggleSession = BoggleSession.for_update(session_id)
 
     if sess.round_scored is not None:
         logger.debug(
@@ -570,7 +570,14 @@ def trigger_scoring(session_id, round_no, round_seed):
         dice_config=app.config['DICE_CONFIG']
     )
 
-    boggle_utils.score_players(by_player.values(), board)
+    dictionary = None
+    if sess.dictionary is not None:
+        try:
+            dictionary = trigger_scoring.dictionaries[sess.dictionary]
+        except KeyError:
+            logger.warning(f"Failed to load dictionary {sess.dictionary}")
+
+    boggle_utils.score_players(by_player.values(), board, dictionary)
 
     sess = BoggleSession.for_update(session_id, allow_nonexistent=True)
     if sess is None:
