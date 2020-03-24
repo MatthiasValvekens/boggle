@@ -48,7 +48,7 @@ def json_err_handler(error_code):
     return lambda e: (jsonify(error=str(e)), error_code)
 
 
-for err in (400, 403, 404, 409):
+for err in (400, 403, 404, 409, 410):
     app.register_error_handler(err, json_err_handler(err))
 
 
@@ -242,7 +242,14 @@ def manage_session(session_id, pepper, mgmt_token):
 
     if request.method == 'POST':
         # prepare a new round
-        sess: BoggleSession = BoggleSession.for_update(session_id)
+        sess: BoggleSession = BoggleSession.for_update(
+            session_id, allow_nonexistent=True
+        )
+        if sess is None:
+            abort(410, "Session has ended")
+        player_q = Player.query.filter(Player.session_id == session_id)
+        if db.session.query(~player_q.exists()).scalar():
+            return abort(409, "Cannot advance round without players")
         # if a scoring computation is running right now, this isn't allowed
         #  note that sess.round_scored being None is not an issue
         if sess.round_scored is False:
@@ -301,7 +308,10 @@ def check_player_token(session_id, pepper, player_id, player_token):
 
 
 def session_state(session_id, pepper):
-    sess: BoggleSession = BoggleSession.query.get_or_404(session_id)
+    sess: BoggleSession = BoggleSession.query\
+        .filter(BoggleSession.id == session_id).one_or_none()
+    if sess is None:
+        abort(410, description="Session has ended")
     players = Player.query.with_parent(sess).all()
     response = {
         'created': sess.created,
@@ -369,7 +379,7 @@ def play(session_id, pepper, player_id, player_token):
     current_player = Player.query.get_or_404(player_id)
     now = datetime.utcnow()
     if sess is None:
-        return abort(404)
+        return abort(410, description="Session has ended")
 
     round_start = sess.round_start
     if round_start is None:
@@ -464,7 +474,7 @@ def trigger_scoring(session_id, round_no, board):
     # either there were no submissions, or the session was nixed
     #  in between calls
     if not by_player:
-        return {}
+        return []
     boggle_utils.score_players(by_player.values(), board)
 
     # TODO how necessary is it to run this select for update [...]

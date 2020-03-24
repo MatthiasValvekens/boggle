@@ -129,10 +129,21 @@ def test_create_destroy_session(client):
     assert rdata['players'] == [], rdata['players']
     assert rdata['status'] == boggle.Status.INITIAL
 
+    # we shouldn't be able to start a game without first adding players
+    response = client.post(sess.manage_url)
+    assert response.status_code == 409, response.get_json()
+
     response = client.delete(sess.manage_url)
     assert response.status_code == 204, response.get_json()
     with boggle.app.app_context():
         assert not boggle.db.session.query(exists_q).scalar()
+
+    # ... and we shouldn't be able to operate on the session
+    # after it's been disposed
+    response = client.post(sess.manage_url)
+    assert response.status_code == 410, response.get_json()
+    response = client.get(sess.manage_url)
+    assert response.status_code == 410, response.get_json()
 
 
 def test_wrong_mgmt_token(client):
