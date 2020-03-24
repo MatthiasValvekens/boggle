@@ -2,6 +2,13 @@ import random
 import json
 from dataclasses import dataclass, field
 from itertools import islice, chain
+import os
+import logging
+import glob
+import re
+
+
+logger = logging.getLogger(__name__)
 
 DICE_CONFIG = (
     'ETUKNO', 'EVGTIN', 'DECAMP', 'IELRUW',
@@ -112,12 +119,6 @@ def paths(word, board):
     return recurse(initial_points, word[1:])
 
 
-def read_dictionary(fname):
-    return {
-        word.rstrip().upper() for word in open(fname, 'r')
-    }
-
-
 def score_word(word, board):
     w_paths = paths(word.replace('QU', 'Q'), board)
     # matters for scoring
@@ -176,3 +177,49 @@ def score_players(words_by_player, board, dictionary=None):
         w.duplicate = blacklisted
         w.dictionary_valid = no_dict or w.word in dictionary
         w.path_array = json.dumps(path)
+
+
+dictionary_regex = re.compile(r'(.*)\.dic')
+
+
+class DictionaryService:
+
+    @staticmethod
+    def list_dictionaries(dictionary_dir):
+        """
+        List available dictionaries in :param dictionary_dir: without
+        importing them.
+
+        :param dictionary_dir:
+            The directory to read
+        :return:
+            A generator yielding base name - file name pairs
+        """
+        files = glob.iglob(os.path.join(dictionary_dir, '*.dic'))
+        for fname in files:
+            dictionary_name = dictionary_regex.match(
+                os.path.basename(fname)
+            ).group(1)
+            yield dictionary_name, fname
+
+    @staticmethod
+    def read_dictionaries(dictionary_dir):
+        dicts = DictionaryService.list_dictionaries(dictionary_dir)
+        for dictionary_name, fname in dicts:
+            logger.info(f"Importing dictionary {fname}...")
+            try:
+                words = {word.rstrip().upper() for word in open(fname, 'r')}
+                yield dictionary_name, words
+            except IOError as e:
+                logger.warning(f"Failed to read dictionary {fname}", e)
+
+    def __init__(self, dictionary_dir):
+        self.__dictionaries = dict(
+            DictionaryService.read_dictionaries(dictionary_dir)
+        )
+
+    def __getitem__(self, item):
+        return self.__dictionaries[item]
+
+    def __contains__(self, item):
+        return item in self.__dictionaries

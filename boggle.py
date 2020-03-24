@@ -3,15 +3,16 @@ import secrets
 import hashlib
 import hmac
 import json
+from abc import ABC
 from collections import defaultdict
 from itertools import chain
-
 from datetime import datetime, timedelta
 from enum import IntEnum
 
+import celery
+
 from flask import Flask, abort, request, jsonify
 from sqlalchemy.exc import IntegrityError
-
 from sqlalchemy.orm import validates
 from sqlalchemy import UniqueConstraint, select
 from flask_sqlalchemy import SQLAlchemy
@@ -478,7 +479,18 @@ def retrieve_submitted_words(session_id, round_no):
     return by_player
 
 
-@celery_app.task
+class DictionaryTask(celery.Task, ABC):
+    _dicts = None
+
+    @property
+    def dictionaries(self):
+        if self._dicts is None:
+            dirname = app.config['DICTIONARY_DIR']
+            self._dicts = boggle_utils.DictionaryService(dirname)
+        return self._dicts
+
+
+@celery_app.task(base=DictionaryTask)
 def trigger_scoring(session_id, round_no, round_seed):
     logger.debug(
         f"Received scoring request for session {session_id}, round {round_no}."
