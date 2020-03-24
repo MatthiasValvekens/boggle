@@ -324,3 +324,57 @@ def test_double_submission(client):
     response = client.post(gc.session.manage_url)
     assert response.status_code == 200
     attempt_submit([], response.get_json()['round_no'])
+
+
+def test_two_player_scenario(client):
+    sess = create_session(client)
+    gc1 = create_player_in_session(client, sess, name='tester1')
+    gc2 = create_player_in_session(client, sess, name='tester2')
+
+    player1_words = ['AQULGE', 'ALGEIG', 'DGIEIHL']
+    player2_words = ['AQULGE', 'ALGEIG', 'DGIEIHLFOLEO']
+
+    # start the session
+    response = client.post(sess.manage_url)
+    assert response.status_code == 200
+    round_no = response.get_json()['round_no']
+    assert round_no == 1
+
+    def do_submit(play_url, words, expected_status):
+        resp = request_json(
+            client, 'put', play_url, data={'round_no': round_no, 'words': words}
+        )
+        assert resp.status_code == 201
+
+        resp = client.get(play_url)
+        assert resp.status_code == 200
+        resp_json = resp.get_json()
+        assert resp_json['status'] == expected_status
+        return resp_json
+
+    do_submit(gc1.play_url, player1_words, boggle.Status.PLAYING)
+    rdata = do_submit(gc2.play_url, player2_words, boggle.Status.SCORED)
+    score_data1, score_data2 = sorted(
+        rdata['scores'], key=lambda sd: sd['player']['player_id']
+    )
+    p1w1, p1w2, p1w3 = score_data1['words']
+    p2w1, p2w2, p2w3 = score_data2['words']
+    # ALGEIG: invalid + duplicate
+    assert p1w1 == p2w1
+    assert p1w1['duplicate']
+    assert p1w1['score'] == 0
+    assert not p1w1['path']
+
+    # AQULGE: valid + duplicate
+    assert p1w2 == p2w2
+    assert p1w2['duplicate']
+    assert p1w2['score'] == 0
+    # path should be reported properly, even though this is a duplicate
+    assert p1w2['path']
+
+    assert p1w3['word'] == 'DGIEIHL'
+    assert p2w3['word'] == 'DGIEIHLFOLEO'
+    assert not p1w3['duplicate'] and not p2w3['duplicate']
+    assert p1w3['score'] == 5
+    assert p2w3['score'] == 11
+    assert p1w3['path'] and p2w3['path']

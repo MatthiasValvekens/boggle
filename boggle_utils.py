@@ -159,17 +159,20 @@ def score_players(words_by_player, board, dictionary=None):
     #  which we modify in-place
 
     # eliminate duplicates between players
-    blacklist = duplicate_entries(
-        map(lambda x: x.word, chain(*words_by_player))
+    blacklist = set(
+        duplicate_entries(map(lambda x: x.word, chain(*words_by_player)))
     )
 
     no_dict = dictionary is None
 
     for w in chain(*words_by_player):
         score, path = score_word(w.word, board)
-        w.score = score
+        blacklisted = w.word in blacklist
+        # non-dictionary words do get a nonzero score, since they
+        #  may be manually approved (TODO)
+        w.score = score if not blacklisted else 0,
         # path may still be valid, of course
         # in that case, we wasted a tiny bit of resources
-        w.duplicate = w.word in blacklist
+        w.duplicate = blacklisted
         w.dictionary_valid = no_dict or w.word in dictionary
         w.path_array = json.dumps(path)
