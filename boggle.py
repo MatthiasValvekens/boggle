@@ -287,10 +287,11 @@ def manage_session(session_id, pepper, mgmt_token):
         if sess.round_scored is False:
             return abort(409, "Round cannot be advanced mid-scoring")
         sess.round_scored = None
-        # TODO: make this customisable in the request
-        sess.round_start = datetime.utcnow() + timedelta(
-            seconds=app.config['DEFAULT_COUNTDOWN']
-        )
+        json_data = request.get_json()
+        until_start = app.config['DEFAULT_COUNTDOWN']
+        if json_data is not None:
+            until_start = json_data.get('until_start', until_start)
+        sess.round_start = datetime.utcnow() + timedelta(seconds=until_start)
         sess.round_no += 1
         db.session.commit()
         return {'round_no': sess.round_no, 'round_start': sess.round_start}
