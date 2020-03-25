@@ -1,23 +1,24 @@
 import os
+from dataclasses import MISSING
+
 import boggle_utils
 from kombu import Exchange, Queue
 
 
-def get_env_setting(setting, default=None):
+def get_env_setting(setting, default=MISSING):
     """ Get the environment setting or raise exception """
 
-    if default is None:
-        try:
-            env = os.environ[setting]
-        except KeyError:
+    try:
+        env = os.environ[setting]
+    except KeyError:
+        if default is MISSING:
             error_msg = "Set the %s env variable" % setting
             raise ValueError(error_msg)
-    else:
-        env = os.environ.get(setting, default)
+        env = default
+
     if isinstance(env, str):
-        return env.strip('\" ')  # strip spaces and quotes
-    else:
-        return env
+        env = env.strip('\" ')  # strip spaces and quotes
+    return env
 
 
 SQLALCHEMY_DATABASE_URI = get_env_setting(
