@@ -14,7 +14,7 @@ import celery
 from flask import Flask, abort, request, jsonify
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import validates
-from sqlalchemy import UniqueConstraint, select
+from sqlalchemy import UniqueConstraint, select, update
 from flask_sqlalchemy import SQLAlchemy
 
 import boggle_utils
@@ -479,6 +479,47 @@ def play(session_id, pepper, player_id, player_token):
         return abort(409, description="You can only submit once")
 
     return jsonify({}), 201
+
+
+@app.route(mgmt_url + '/approve_word', methods=['PUT'])
+def approve_word(session_id, pepper, mgmt_token):
+    check_mgmt_token(session_id, pepper, mgmt_token)
+
+    sess: BoggleSession = BoggleSession.for_update(
+        session_id, allow_nonexistent=True
+    )
+    if sess is None:
+        abort(410, description="Session already ended")
+
+    if not sess.round_scored:
+        abort(409,
+              description="This functionality is only available after scoring")
+
+    json_data = request.get_json()
+    if json_data is None:
+        abort(400, description="No word data supplied")
+
+    try:
+        word = json_data['word'].upper()
+    except (KeyError, AttributeError):
+        return abort(400, description="No word data supplied")
+
+    update_q = update(Word).values(dictionary_valid=True)\
+        .where(Word.word == word)\
+        .where(Word.submission_id == Submission.id)\
+        .where(Submission.round_no == sess.round_no)\
+        .where(Submission.player_id == Player.id)\
+        .where(Player.session_id == session_id)
+
+    db.session.execute(update_q)
+    db.session.commit()
+
+    scores = format_scores(
+        retrieve_submitted_words(session_id, round_no=sess.round_no)
+    )
+    return {
+        'scores': list(scores)
+    }
 
 
 def format_scores(by_player):

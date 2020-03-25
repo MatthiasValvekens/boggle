@@ -57,7 +57,7 @@ def test_board_path():
 SessionData = namedtuple(
     'SessionData',
     ['session_id', 'pepper', 'mgmt_token',
-     'session_token', 'manage_url', 'join_url']
+     'session_token', 'manage_url', 'join_url', 'approve_url']
 )
 
 GameContext = namedtuple(
@@ -102,9 +102,14 @@ def create_session(client, dictionary=None) -> SessionData:
             'session_join', session_id=session_id, pepper=pepper,
             inv_token=session_token
         )
+        approve_url = flask.url_for(
+            'approve_word', session_id=session_id, pepper=pepper,
+            mgmt_token=mgmt_token
+        )
     return SessionData(
         session_id=session_id, pepper=pepper, session_token=session_token,
-        mgmt_token=mgmt_token, manage_url=manage_url, join_url=join_url
+        mgmt_token=mgmt_token, manage_url=manage_url, join_url=join_url,
+        approve_url=approve_url
     )
 
 
@@ -370,6 +375,14 @@ def test_single_player_scenario(client):
     assert word5['score'] == 2
     assert not word5['duplicate']
     assert not word5['dictionary_valid']
+
+    response = request_json(
+        client, 'put', gc.session.approve_url, data={'word': 'TLEGI'}
+    )
+    rdata = response.get_json()
+    assert response.status_code == 200, rdata
+    # check validity flag
+    assert rdata['scores'][0]['words'][4]['dictionary_valid']
 
 
 def test_double_submission(client):
