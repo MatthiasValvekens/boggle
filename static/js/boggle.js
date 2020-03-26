@@ -221,7 +221,6 @@ export const boggleController = function () {
         if(timerGoalValue === null)
             timerElement.innerText = BOGGLE_CONFIG.emptyTimerString;
         let delta = timerGoalValue - (new Date().getTime());
-        console.log(new Date(timerGoalValue) + ' ' + delta);
         if(delta <= 0) {
             if(goalCallback !== null)
                 goalCallback();
@@ -237,11 +236,23 @@ export const boggleController = function () {
     }
 
     function advanceRound() {
-        let requestData = {'until-start': 8}; //TODO placeholder
+        let requestData = {'until_start': 8}; //TODO placeholder
         return callBoggleApi('POST', sessionContext().mgmtEndpoint, requestData, function () {
             $('#advance-round').prop("disabled", true);
         })
     }
+
+    function submitWords() {
+        if(gameState === null)
+            throw "Cannot submit";
+        if(gameState.roundSubmitted)
+            return;
+        const words = $('#words').val().toUpperCase().split(/\s+/);
+        let submission = {'round_no': gameState.roundNo, 'words': words};
+        callBoggleApi('put', playerContext().playEndpoint, submission, forceRefresh);
+        gameState.markSubmitted();
+    }
+
 
     function heartbeat() {
         if (gameState === null)
@@ -250,17 +261,6 @@ export const boggleController = function () {
         if (heartbeatTimer !== null) {
             clearTimeout(heartbeatTimer);
             heartbeatTimer = null;
-        }
-
-        function submitWords() {
-            // TODO
-            if(gameState === null)
-                throw "Cannot submit";
-            if(gameState.roundSubmitted)
-                return;
-
-            console.log('Submission placeholder');
-            gameState.markSubmitted();
         }
 
         toggleBusy(true);
@@ -288,13 +288,7 @@ export const boggleController = function () {
                     // count down to start of round
                     timerGoalValue = gameState.roundStart;
                     if(noTimerRunning)
-                        timerControl(function(){
-                            // force a heartbeat call, unless one is already happening now
-                            if(heartbeatTimer !== null) {
-                                clearTimeout(heartbeatTimer);
-                                heartbeat();
-                            }
-                        });
+                        timerControl(forceRefresh);
                     break;
                 case RoundState.PLAYING:
                     // count down to end of round, and submit scores when timer reaches zero
@@ -355,9 +349,19 @@ export const boggleController = function () {
         });
     }
 
+    /**
+     * Force a heartbeat call, unless one is already happening now
+     */
+    function forceRefresh() {
+        if(heartbeatTimer !== null) {
+            clearTimeout(heartbeatTimer);
+            heartbeat();
+        }
+    }
+
     return {
         listDictionaries: listDictionaries, joinExistingSession: joinExistingSession,
-        advanceRound: advanceRound
+        advanceRound: advanceRound, forceRefresh: forceRefresh
     }
 }();
 

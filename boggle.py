@@ -369,7 +369,7 @@ def session_state(session_id, pepper):
     if app.config['TESTING']:
         round_seed = app.config['TESTING_SEED']
     else:
-        round_seed = (str(round_no) + pepper).encode('ascii') + server_key
+        round_seed = str(round_no) + pepper + server_key.hex()
     duration = timedelta(minutes=app.config['ROUND_DURATION_MINUTES'])
     round_end = round_start + duration
     now = datetime.utcnow()
@@ -467,9 +467,9 @@ def play(session_id, pepper, player_id, player_token):
         return abort(400, description="Malformed submission data")
     try:
         words = submission_json['words']
-        round_no_supplied = submission_json['round_no']
+        round_no_supplied = int(submission_json['round_no'])
     except KeyError:
-        return abort(400, desription="Submission not properly structured")
+        return abort(400, description="Submission not properly structured")
     if round_no != round_no_supplied:
         errmsg = "Wrong round %d, currently round %d" % (
             round_no_supplied, round_no

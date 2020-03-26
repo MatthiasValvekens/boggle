@@ -112,7 +112,7 @@ export class GameState {
      * @param {ServerGameState} serverUpdate
      */
     updateState(serverUpdate) {
-        let { status, roundNo } = serverUpdate;
+        let { status, round_no: roundNo } = serverUpdate;
         this._playerList = serverUpdate.players.map(
             ({name, player_id}) => ({name: name, playerId: player_id})
         );
@@ -122,7 +122,6 @@ export class GameState {
             gameStateAdvanced = true;
         }
         this._roundNo = roundNo;
-        console.log('STATUS ' + status);
         switch(status) {
             case RoundState.SCORED:
                 // TODO update score data
@@ -131,10 +130,8 @@ export class GameState {
                 this._boardCols = serverUpdate.board.cols;
                 this._boardRows = serverUpdate.board.rows;
                 this._boardState = serverUpdate.board.dice;
-                console.log("END" + serverUpdate.round_start);
                 this._roundEnd = moment.utc(serverUpdate.round_end).valueOf();
             case RoundState.PRE_START:
-                console.log("START" + serverUpdate.round_start + " " + moment.utc(serverUpdate.round_start));
                 this._roundStart = moment.utc(serverUpdate.round_start).valueOf();
             case RoundState.INITIAL:
                 break;
