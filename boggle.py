@@ -295,7 +295,7 @@ def manage_session(session_id, pepper, mgmt_token):
             return abort(409, "Round cannot be advanced mid-scoring")
         sess.round_scored = None
         json_data = request.get_json()
-        until_start = app.config['DEFAULT_COUNTDOWN']
+        until_start = app.config['DEFAULT_COUNTDOWN_SECONDS']
         if json_data is not None:
             until_start = json_data.get('until_start', until_start)
         sess.round_start = datetime.utcnow() + timedelta(seconds=until_start)

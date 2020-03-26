@@ -12,7 +12,7 @@ def client():
     boggle.app.config['TESTING'] = True
     boggle.app.config['TESTING_SEED'] = 5
     boggle.app.config['SERVER_NAME'] = 'localhost.localdomain'
-    boggle.app.config['DEFAULT_COUNTDOWN'] = 0
+    boggle.app.config['DEFAULT_COUNTDOWN_SECONDS'] = 0
     boggle.app.config['DISABLE_ASYNC_SCORING'] = True
     boggle.trigger_scoring._dicts = {
         'testing': ['AQULGE', 'QLGE', 'ALGEIG', 'DGIEIHLFLO', 'QULGE'],
