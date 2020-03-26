@@ -75,6 +75,18 @@
                     boggle.boggleController.listDictionaries();
                     $('#join-session').click(boggle.boggleController.joinExistingSession);
                     $('#advance-round').click(boggle.boggleController.advanceRound);
+                    $('#inv-token-display-copy').click(function () {
+                            const invTokenField = document.getElementById("inv-token-display");
+                            invTokenField.select();
+                            invTokenField.setSelectionRange(0, 100);
+                            document.execCommand("copy");
+                            invTokenField.blur();
+                            const icon = $('#inv-token-display-copy span.fas');
+                            icon.removeClass("fa-clipboard");
+                            icon.addClass("fa-clipboard-check");
+                            $('#inv-token-display-copy').addClass("is-success");
+                        }
+                    );
                 }
             );
         </script>
@@ -200,13 +212,22 @@
                 <div class="box">
                     <div class="columns is-centered">
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd">
-                            <div class="field">
-                                <label class="label" for="inv-token-display">Uitnodigingstoken</label>
+                            <div class="field has-addons">
                                 <div class="control is-expanded has-icons-left">
-                                    <input id="inv-token-display" class="input" type="text" readonly>
+                                    <input id="inv-token-display" class="input" type="text" readonly aria-label="Uitnodigingstoken">
                                     <span class="icon is-small is-left">
                                           <span class="fas fa-users"></span>
                                     </span>
+                                    <p class="help">
+                                        Uitnodigingstoken: klik om te kopiëren
+                                    </p>
+                                </div>
+                                <div class="control">
+                                    <button id="inv-token-display-copy" class="button is-light">
+                                        <span class="icon is-small">
+                                            <span class="fas fa-clipboard"></span>
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
                             <button class="button is-fullwidth is-primary" id="advance-round">Volgende ronde</button>
