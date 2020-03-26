@@ -3,14 +3,20 @@ import * as boggleModel from './boggle-model.js';
 /**
  * Boggle configuration parameters.
  *
- * @type {{apiBaseURL: string}} - Base URL for the API.
+ * @type {Object}
+ * @property {string} apiBaseURL - Base URL for the Boggle API
+ * @property {int} heartbeatTimeout - Timeout in milliseconds between state polls.
  */
 export const BOGGLE_CONFIG = {
     apiBaseURL: "",
+    heartbeatTimeout: 3000,
+    emptyTimerString: '-:--'
 };
 
 
 export const boggleController = function () {
+    const RoundState = boggleModel.RoundState;
+
     /** @type {SessionContext} */
     let _sessionContext = null;
 
@@ -30,7 +36,6 @@ export const boggleController = function () {
         if (_playerContext === null)
             throw "No player context";
         return _playerContext;
-
     }
 
     function ajaxErrorHandler(response, textStatus, errorThrown) {
@@ -78,19 +83,22 @@ export const boggleController = function () {
     function requestJoin(name) {
 
         function playerSetupCallback({player_id, player_token, name}) {
+            let sess = sessionContext();
             _playerContext = Object.freeze(
-                new boggleModel.PlayerContext(sessionContext(), player_id, player_token, name)
+                new boggleModel.PlayerContext(sess, player_id, player_token, name)
             );
 
-            if(sessionContext().isManager) {
-                // TODO activate admin UI
+            if(sess.isManager) {
+                $('#manager-controls').show();
+                $('#inv-token-display').val(
+                    `${sess.sessionId}:${sess.saltToken}:${sess.invToken}`
+                );
             }
             $('#start-section').hide();
             $('#game-section').show();
 
-            toggleBusy(true);
-            // TODO replace registration UI with game UI
-            // TODO set up session polling task
+            gameState = new boggleModel.GameState(_playerContext);
+            heartbeat();
         }
         return callBoggleApi(
             'post', sessionContext().joinEndpoint,
@@ -98,7 +106,7 @@ export const boggleController = function () {
         );
     }
 
-    /** @returns {string} */
+    /** @returns {?string} */
     function retrievePlayerName() {
         const input = $('#player-name-input');
         if(!input.get(0).reportValidity()) {
@@ -202,9 +210,154 @@ export const boggleController = function () {
             $('#loading-icon').hide();
     }
 
+    let heartbeatTimer = null;
+    /** @type {GameState} */
+    let gameState = null;
+    /** @type {?int} */
+    let timerGoalValue = null;
+
+    function timerControl(goalCallback=null) {
+        let timerElement = document.getElementById('timer');
+        if(timerGoalValue === null)
+            timerElement.innerText = BOGGLE_CONFIG.emptyTimerString;
+        let delta = timerGoalValue - (new Date().getTime());
+        console.log(new Date(timerGoalValue) + ' ' + delta);
+        if(delta <= 0) {
+            if(goalCallback !== null)
+                goalCallback();
+            timerElement.innerText = BOGGLE_CONFIG.emptyTimerString;
+            timerGoalValue = null;
+            // no need to reschedule the timer
+            return;
+        }
+        let minutes = Math.floor(delta / (1000 * 60));
+        let seconds = Math.floor((delta - minutes * 1000 * 60) / 1000);
+        timerElement.innerText = `${minutes}:${seconds < 10? '0' : ''}${seconds}`;
+        setTimeout(() => timerControl(goalCallback), 1000);
+    }
+
+    function advanceRound() {
+        let requestData = {'until-start': 8}; //TODO placeholder
+        return callBoggleApi('POST', sessionContext().mgmtEndpoint, requestData, function () {
+            $('#advance-round').prop("disabled", true);
+        })
+    }
+
+    function heartbeat() {
+        if (gameState === null)
+            throw "Game not running";
+
+        if (heartbeatTimer !== null) {
+            clearTimeout(heartbeatTimer);
+            heartbeatTimer = null;
+        }
+
+        function submitWords() {
+            // TODO
+            if(gameState === null)
+                throw "Cannot submit";
+            if(gameState.roundSubmitted)
+                return;
+
+            console.log('Submission placeholder');
+            gameState.markSubmitted();
+        }
+
+        toggleBusy(true);
+        boggleAPIGet(playerContext().playEndpoint, function (response) {
+            if (gameState === null) {
+                console.log("Game ended while waiting for server response.");
+                return;
+            }
+            let gameStateAdvanced = gameState.updateState(response);
+            let status = gameState.status;
+
+            // update the player list
+            let currentPlayer = playerContext().playerId;
+            let playerListFmtd = gameState.playerList.map(
+                ({playerId, name}) =>
+                    `<li data-player-id="${playerId}" ${playerId === currentPlayer ? 'class="me"' : ''}>${name}</li>`
+            ).join('');
+            $('#player-list ul').html(playerListFmtd);
+
+
+            // update the timer control, if necessary
+            let noTimerRunning = timerGoalValue === null;
+            switch(status) {
+                case RoundState.PRE_START:
+                    // count down to start of round
+                    timerGoalValue = gameState.roundStart;
+                    if(noTimerRunning)
+                        timerControl(function(){
+                            // force a heartbeat call, unless one is already happening now
+                            if(heartbeatTimer !== null) {
+                                clearTimeout(heartbeatTimer);
+                                heartbeat();
+                            }
+                        });
+                    break;
+                case RoundState.PLAYING:
+                    // count down to end of round, and submit scores when timer reaches zero
+                    timerGoalValue = gameState.roundEnd;
+                    if(noTimerRunning || gameStateAdvanced)
+                        timerControl(submitWords);
+                    break;
+                case RoundState.SCORING:
+                    // if we somehow end up killing the round-end timer, make sure we still submit
+                    submitWords();
+                default:
+                    timerGoalValue = null;
+            }
+            // update status box
+            let statusBox = $('#status-box');
+            switch(status) {
+                case RoundState.INITIAL:
+                    statusBox.text('Wachten op startaankondiging...');
+                    break;
+                case RoundState.PRE_START:
+                    statusBox.text('Ronde begint zometeen...');
+                    break;
+                case RoundState.PLAYING:
+                    statusBox.text('Ronde bezig');
+                    break;
+                case RoundState.SCORING:
+                    statusBox.text('Wachten op scores...');
+                    break;
+                case RoundState.SCORED:
+                    statusBox.text('Scores binnen!');
+                default:
+                    break;
+            }
+
+            // update availability of submission textarea
+            $('#words').prop("disabled", status !== RoundState.PLAYING);
+
+            // update board etc.
+            if (gameStateAdvanced) {
+                let boggleGrid = $('#boggle');
+                if(status !== RoundState.INITIAL && status !== RoundState.PRE_START) {
+                    let boardHTML = gameState.boardState.map(
+                        (row) =>
+                            `<tr>${row.map((letter) => `<td>${letter}</td>`).join('')}</tr>`
+                    ).join('');
+                    boggleGrid.html(boardHTML);
+                }
+            }
+
+            // update admin interface
+            if(sessionContext().isManager) {
+                let canAdvance = status === RoundState.INITIAL || status === RoundState.SCORED;
+                $('#advance-round').prop("disabled", !canAdvance);
+            }
+
+            heartbeatTimer = setTimeout(heartbeat, BOGGLE_CONFIG.heartbeatTimeout);
+            toggleBusy(false);
+        });
+    }
 
     return {
         listDictionaries: listDictionaries, joinExistingSession: joinExistingSession,
+        advanceRound: advanceRound
     }
 }();
 

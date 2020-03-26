@@ -44,6 +44,9 @@
                 margin:0 0.4em 0 -1.2em;
                 color: #7a7a7a;
             }
+            #player-list li.me {
+                font-weight: bold;
+            }
             #loading-icon {
                 position: fixed;
                 left: 0;
@@ -71,6 +74,7 @@
                 function() {
                     boggle.boggleController.listDictionaries();
                     $('#join-session').click(boggle.boggleController.joinExistingSession);
+                    $('#advance-round').click(boggle.boggleController.advanceRound);
                 }
             );
         </script>
@@ -88,7 +92,7 @@
                             <h6 class="title is-4">Naam</h6>
                             <div class="field">
                                 <label class="label" for="player-name-input">Kies een gebruikersnaam</label>
-                                <div class="control has-icons-left has-icons-right">
+                                <div class="control has-icons-left">
                                     <input id="player-name-input" class="input" type="text" placeholder="Naam" required>
                                     <span class="icon is-small is-left">
                                           <span class="fas fa-user"></span>
@@ -130,7 +134,7 @@
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
                             <h6 class="title is-4">Aansluiten bij lopende sessie</h6>
                             <div class="field has-addons">
-                                <div class="control has-icons-left has-icons-right">
+                                <div class="control has-icons-left">
                                     <input id="inv-token" class="input" type="text" placeholder="Uitnodigingstoken" pattern="\d+:[0-9a-f]{16}:[0-9a-f]{20}" size="40" aria-label="Uitnodigingstoken">
                                     <span class="icon is-small is-left">
                                           <span class="fas fa-users"></span>
@@ -153,32 +157,30 @@
                 </div>
             </div>
         </section>
-        <!--- TODO Everything below this line is a mockup! -->
         <section class="section" id="game-section" style="display: none;">
             <div class="container">
                 <h1 class="title is-1 has-text-centered">Boggle</h1>
                 <div class="box">
                     <div class="columns">
                         <div class="column is-4 has-text-centered">
+                            <h6 class="subtitle is-6 has-text-weight-bold" id="status-box">
+                            </h6>
                             <div id="timer-box">
-                                <span id="timer">3:00</span>
+                                <span id="timer">-:--</span>
                             </div>
                         </div>
                         <div class="column is-4">
                             <table class="boggle-grid" id="boggle">
-                                <!-- This should be JS-generated depending on board data-->
-                                <tr><td>A</td><td>Q</td><td>L</td><td>T</td></tr>
-                                <tr><td>O</td><td>L</td><td>E</td><td>O</td></tr>
-                                <tr><td>F</td><td>D</td><td>G</td><td>I</td></tr>
-                                <tr><td>L</td><td>H</td><td>I</td><td>E</td></tr>
+                                <tr><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                                <tr><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                                <tr><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                                <tr><td>-</td><td>-</td><td>-</td><td>-</td></tr>
                             </table>
                         </div>
                         <div class="column is-4">
                             <h6 class="has-text-weight-bold has-text-centered">Spelers</h6>
                             <div id="player-list">
                                 <ul>
-                                    <li data-player-id="1">Player1</li>
-                                    <li data-player-id="2">Andere speler</li>
                                 </ul>
                             </div>
                         </div>
@@ -186,7 +188,28 @@
                     <h2 class="subtitle has-text-centered"><label for="words">Woorden</label></h2>
                     <div class="columns is-centered">
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd">
-                            <textarea class="textarea" id="words" placeholder="Woorden..."></textarea>
+                            <textarea class="textarea" id="words" placeholder="Woorden..." disabled></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="section" id="manager-controls" style="display: none">
+            <div class="container">
+                <h5 class="title is-5 has-text-centered">Bedieningspaneel</h5>
+                <div class="box">
+                    <div class="columns is-centered">
+                        <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd">
+                            <div class="field">
+                                <label class="label" for="inv-token-display">Uitnodigingstoken</label>
+                                <div class="control is-expanded has-icons-left">
+                                    <input id="inv-token-display" class="input" type="text" readonly>
+                                    <span class="icon is-small is-left">
+                                          <span class="fas fa-users"></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="button is-fullwidth is-primary" id="advance-round">Volgende ronde</button>
                         </div>
                     </div>
                 </div>
