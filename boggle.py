@@ -31,7 +31,7 @@ app.config.from_object(config)
 app.config['SECRET_KEY'] = server_key = secrets.token_bytes(32)
 db = SQLAlchemy(app)
 
-DATE_FORMAT_STR = '%Y-%m-%d %H:%M:%s'
+DATE_FORMAT_STR = '%Y-%m-%d %H:%M:%S'
 MAX_NAME_LENGTH = 250
 
 
@@ -301,7 +301,10 @@ def manage_session(session_id, pepper, mgmt_token):
         sess.round_start = datetime.utcnow() + timedelta(seconds=until_start)
         sess.round_no += 1
         db.session.commit()
-        return {'round_no': sess.round_no, 'round_start': sess.round_start}
+        return {
+            'round_no': sess.round_no,
+            'round_start': sess.round_start.strftime(DATE_FORMAT_STR)
+        }
 
 
 @app.route(session_url_base + '/join/<inv_token>', methods=['POST'])
@@ -362,7 +365,6 @@ def session_state(session_id, pepper):
     if round_start is None:
         response['status'] = Status.INITIAL
         return response
-
     round_no = sess.round_no
     if app.config['TESTING']:
         round_seed = app.config['TESTING_SEED']
