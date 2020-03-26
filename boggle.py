@@ -11,7 +11,7 @@ from enum import IntEnum
 
 import celery
 
-from flask import Flask, abort, request, jsonify
+from flask import Flask, abort, request, jsonify, render_template
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import validates
 from sqlalchemy import UniqueConstraint, select, update
@@ -24,7 +24,7 @@ from boggle_celery import app as celery_app
 
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 
 app.config.from_object(config)
@@ -204,6 +204,13 @@ def gen_session_inv_token(session_id, pepper):
 
 def gen_player_token(session_id, player_id, pepper):
     return gen_salted_token(b'player', session_id, pepper, player_id)
+
+
+@app.route('/', methods=['GET'])
+def index():
+    return render_template(
+        'boggle.html', api_base_url=app.config['API_BASE_URL']
+    )
 
 
 @app.route('/dictionaries', methods=['GET'])

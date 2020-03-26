@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Boggle</title>
+        <link rel="stylesheet" href="/static/css/bulma.min.css">
+        <link rel="stylesheet" href="/static/css/fontawesome-all.min.css">
+        <style>
+            table.boggle-grid {
+                border-collapse: collapse;
+                font-family: Calibri, sans-serif;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            table.boggle-grid td {
+                border: solid medium;
+                height: 2.5em;
+                width: 2.5em;
+                text-align: center;
+                vertical-align: middle;
+                padding: 0;
+                font-size: 120%;
+            }
+            #timer-box {
+                font-size: 3rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                width: 100%;
+            }
+            #player-list {
+                display: flex;
+                justify-content: center;
+            }
+            #player-list ul {
+                margin-top: 0.5rem;
+                list-style-type: none;
+            }
+            #player-list li::before {
+                content: "\f007";
+                font-family: "FontAwesome";
+                margin:0 0.4em 0 -1.2em;
+                color: #7a7a7a;
+            }
+            #loading-icon {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                font-size: 300%;
+            }
+            #loading-icon span {
+                padding: 0.5rem;
+            }
+            #inv-token:invalid:not(:placeholder-shown){
+                border-color: red;
+            }
+            #inv-token:invalid:focus:not(:placeholder-shown) {
+                box-shadow: 0 0 0 .125em #8d181b40;
+            }
+        </style>
+        <script type="text/javascript" src="/static/js/jquery.min.js"></script>
+        <script type="text/javascript" src="/static/js/moment.js"></script>
+        <script type="module">
+            import * as boggle from '/static/js/boggle.js';
+            boggle.BOGGLE_CONFIG.apiBaseURL = "{{ api_base_url }}";
+            $(document).ready(
+                function() {
+                    boggle.boggleController.listDictionaries();
+                    $('#join-session').click(boggle.boggleController.joinExistingSession);
+                }
+            );
+        </script>
+    </head>
+    <body>
+        <div id="loading-icon" style="display: none;"><span class="fas fa-pulse fa-spinner"></span></div>
+        <section class="section" id="start-section">
+            <div class="container">
+                <h1 class="title is-1 has-text-centered">
+                    Boggle
+                </h1>
+                <div class="box">
+                    <div class="columns is-centered">
+                        <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
+                            <h6 class="title is-4">Naam</h6>
+                            <div class="field">
+                                <label class="label" for="player-name-input">Kies een gebruikersnaam</label>
+                                <div class="control has-icons-left has-icons-right">
+                                    <input id="player-name-input" class="input" type="text" placeholder="Naam" required>
+                                    <span class="icon is-small is-left">
+                                          <span class="fas fa-user"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr/>
+                    <div class="columns is-centered">
+                        <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
+                            <h6 class="title is-4">Nieuwe sessie opstarten</h6>
+                            <div class="field has-addons">
+                                <div class="control is-expanded has-icons-left">
+                                    <div class="select is-fullwidth" id="dictionary-select">
+                                        <select id="dictionary" aria-label="woordenboek selecteren" required>
+                                            <option value="" disabled selected hidden>
+                                                Woordenboek
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <span class="icon is-small is-left">
+                                        <span class="fas fa-book"></span>
+                                    </span>
+                                </div>
+                                <div class="control">
+                                    <button id="spawn-session" class="button is-primary" disabled>
+                                        <span>Start</span>
+                                        <span class="icon is-small">
+                                            <span class="fas fa-chevron-right is-right"></span>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr/>
+                    <div class="columns is-centered">
+                        <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
+                            <h6 class="title is-4">Aansluiten bij lopende sessie</h6>
+                            <div class="field has-addons">
+                                <div class="control has-icons-left has-icons-right">
+                                    <input id="inv-token" class="input" type="text" placeholder="Uitnodigingstoken" pattern="\d+:[0-9a-f]{16}:[0-9a-f]{20}" size="40" aria-label="Uitnodigingstoken">
+                                    <span class="icon is-small is-left">
+                                          <span class="fas fa-users"></span>
+                                    </span>
+                                    <p class="help is-danger" id="inv-token-error" style="display: none;">
+                                        Dit uitnodigingstoken is niet geldig.
+                                    </p>
+                                </div>
+                                <div class="control">
+                                    <button id="join-session" class="button is-primary">
+                                        <span>Start</span>
+                                        <span class="icon is-small">
+                                            <span class="fas fa-chevron-right is-right"></span>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!--- TODO Everything below this line is a mockup! -->
+        <section class="section" id="game-section" style="display: none;">
+            <div class="container">
+                <h1 class="title is-1 has-text-centered">Boggle</h1>
+                <div class="box">
+                    <div class="columns">
+                        <div class="column is-4 has-text-centered">
+                            <div id="timer-box">
+                                <span id="timer">3:00</span>
+                            </div>
+                        </div>
+                        <div class="column is-4">
+                            <table class="boggle-grid" id="boggle">
+                                <!-- This should be JS-generated depending on board data-->
+                                <tr><td>A</td><td>Q</td><td>L</td><td>T</td></tr>
+                                <tr><td>O</td><td>L</td><td>E</td><td>O</td></tr>
+                                <tr><td>F</td><td>D</td><td>G</td><td>I</td></tr>
+                                <tr><td>L</td><td>H</td><td>I</td><td>E</td></tr>
+                            </table>
+                        </div>
+                        <div class="column is-4">
+                            <h6 class="has-text-weight-bold has-text-centered">Spelers</h6>
+                            <div id="player-list">
+                                <ul>
+                                    <li data-player-id="1">Player1</li>
+                                    <li data-player-id="2">Andere speler</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <h2 class="subtitle has-text-centered"><label for="words">Woorden</label></h2>
+                    <div class="columns is-centered">
+                        <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd">
+                            <textarea class="textarea" id="words" placeholder="Woorden..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </body>
+</html>

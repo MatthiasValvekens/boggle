@@ -48,4 +48,4 @@ CELERY_BROKER_URL = get_env_setting(
 CELERY_BROKER_HEARTBEAT = 10
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 DICTIONARY_DIR = 'dictionaries'
-
+API_BASE_URL = get_env_setting('API_BASE_URL', '')
