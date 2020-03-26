@@ -38,7 +38,7 @@ export const boggleController = function () {
         return _playerContext;
     }
 
-    function ajaxErrorHandler(response, textStatus, errorThrown) {
+    function ajaxErrorHandler(response) {
         if (!('responseJSON' in response)) {
             console.log("Unknown error on API call")
         }
@@ -324,7 +324,10 @@ export const boggleController = function () {
             }
 
             // update availability of submission textarea
-            $('#words').prop("disabled", status !== RoundState.PLAYING);
+            if(status === RoundState.PLAYING)
+                $('#words').prop("disabled", false).val('');
+            else
+                $('#words').prop("disabled", true);
 
             // update board etc.
             if (gameStateAdvanced) {
