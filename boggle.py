@@ -482,7 +482,7 @@ def play(session_id, pepper, player_id, player_token):
         return abort(409, description=errmsg)
     submission_obj = Submission(round_no=round_no)
     current_player.submissions.append(submission_obj)
-    for word in set(boggle_utils.BoggleWord(w) for w in words):
+    for word in set(boggle_utils.BoggleWord(w) for w in words if w):
         # TODO can this be done in one append()?
         submission_obj.words.append(Word(word=str(word)))
     try:
