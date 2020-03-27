@@ -166,14 +166,18 @@ class Word(db.Model):
 
     def score_json(self):
         return {
-            'score': self.score,
+            'score': self.score if self.dictionary_valid else 0,
             'word': self.word,
+            'in_grid': self.path_array is not None,
             'duplicate': self.duplicate,
             'dictionary_valid': self.dictionary_valid,
             # this is a bit silly, since we'll just reencode
             #  it right away, but it's the most straightforward
             #  way to go about it
-            'path': json.loads(self.path_array)
+            'path': (
+                json.loads(self.path_array)
+                if self.path_array is not None else None
+            )
         }
 
     # noinspection PyUnusedLocal
@@ -533,12 +537,37 @@ def approve_word(session_id, pepper, mgmt_token):
 
 
 def format_scores(by_player):
+    longest = 0
+    longest_unique = True
+
+    # figure out if there are multiple players with a word of maximal length
+    for words in by_player.values():
+        max_len = max(
+            len(w.word) for w in words if w.score and w.dictionary_valid
+        )
+        if max_len > longest:
+            longest = max_len
+            longest_unique = True
+        elif max_len == longest:
+            longest_unique = False
+
     for (pl_id, pl_name), words in by_player.items():
+
+        # If this player is the only one with words of this length, all
+        # words with the longest length get awarded double points
+        def effective_scores():
+            for w in words:
+                score_json = w.score_json()
+                if longest_unique and len(w.word) == longest:
+                    score_json['score'] *= 2
+                    score_json['longest_bonus'] = True
+                else:
+                    score_json['longest_bonus'] = False
+                yield score_json
+
         yield {
             'player': {'player_id': pl_id, 'name': pl_name},
-            'words': sorted(
-                (w.score_json() for w in words), key=lambda w: w['word']
-            )
+            'words': sorted(effective_scores(), key=lambda w: w['word'])
         } 
 
 

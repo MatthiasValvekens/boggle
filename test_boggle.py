@@ -359,7 +359,7 @@ def test_single_player_scenario(client):
     assert word2['dictionary_valid']
 
     assert word3['word'] == 'DGIEIHLFLO'
-    assert word3['score'] == 11
+    assert word3['score'] == 11 * 2
     assert len(word3['path']) == 10
     assert not word3['duplicate']
     assert word3['dictionary_valid']
@@ -372,7 +372,7 @@ def test_single_player_scenario(client):
     assert word4['word'] in ('QLGE', 'QULGE')
 
     assert word5['word'] == 'TLEGI'
-    assert word5['score'] == 2
+    assert word5['score'] == 0
     assert not word5['duplicate']
     assert not word5['dictionary_valid']
 
@@ -466,5 +466,5 @@ def test_two_player_scenario(client):
     assert p2w3['word'] == 'DGIEIHLFOLEO'
     assert not p1w3['duplicate'] and not p2w3['duplicate']
     assert p1w3['score'] == 5
-    assert p2w3['score'] == 11
+    assert p2w3['score'] == 11 * 2
     assert p1w3['path'] and p2w3['path']

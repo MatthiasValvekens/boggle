@@ -69,7 +69,7 @@ def paths(word, board):
         raise ValueError
     board_cols = len(board[0])
     if len(word) < 3 or len(word) > 16:
-        return []
+        return iter([])
 
     initial_points = [
         Letter(i=i, j=j, label=ch)
@@ -170,13 +170,14 @@ def score_players(words_by_player, board, dictionary=None):
         score, path = score_word(w.word, board)
         blacklisted = w.word in blacklist
         # non-dictionary words do get a nonzero score, since they
-        #  may be manually approved (TODO)
+        #  may be manually approved.
+        # Hence, the "proper" score still needs to be saved in the DB
         w.score = score if not blacklisted else 0
         # path may still be valid, of course
         # in that case, we wasted a tiny bit of resources
         w.duplicate = blacklisted
         w.dictionary_valid = no_dict or w.word in dictionary
-        w.path_array = json.dumps(path)
+        w.path_array = json.dumps(path) if path is not None else None
 
 
 dictionary_regex = re.compile(r'(.*)\.dic')
