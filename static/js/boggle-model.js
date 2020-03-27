@@ -225,6 +225,12 @@ export class GameState {
         this._roundSubmitted = true;
     }
 
+    /** @param {PlayerScore[]}scores */
+    updateScores(scores) {
+        this._scores = new RoundScoreSummary(this._roundNo, scores);
+    }
+
+
     get scores() {
         return this._scores
     }

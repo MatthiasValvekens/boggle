@@ -236,6 +236,11 @@ export const boggleController = function () {
     }
 
     function advanceRound() {
+        // clean up word approval UI
+        $('#dict-invalid .score-zero').off('click');
+        $('#dict-invalid button').remove();
+        $('#dict-invalid').removeAttr('id');
+
         let requestData = {'until_start': parseInt($('#round-announce-countdown').val())};
         return callBoggleApi('POST', sessionContext().mgmtEndpoint, requestData, function () {
             $('#advance-round').prop("disabled", true);
@@ -341,7 +346,7 @@ export const boggleController = function () {
             }
 
             // update scores
-            if(status === RoundState.SCORED) {
+            if(status === RoundState.SCORED && gameStateAdvanced) {
                 formatScores(gameState.scores);
                 $('#score-section').show();
             }
@@ -357,33 +362,70 @@ export const boggleController = function () {
         });
     }
 
+    function approveWords() {
+        let requestData = {
+            words: $('#dict-invalid .score-zero .approved').toArray().map((el) => el.innerText)
+        };
+        let endpoint = sessionContext().mgmtEndpoint + '/approve_word';
+        return callBoggleApi('put', endpoint, requestData, function({scores}) {
+            gameState.updateScores(scores);
+            formatScores(gameState.scores);
+        });
+    }
+
     /**
      * @param {RoundScoreSummary} roundScoreSummary
      */
     function formatScores(roundScoreSummary) {
-        /**
-         *
-         * @param {WordScore} wordScore
-         */
+
+        function fmtBad(str) {
+            return `<div class="control score-zero"><div class="tags has-addons">
+                        <span class="tag is-danger">${str}</span>
+                    </div></div>`;
+        }
+
+        /** @param {WordScore} wordScore */
         function fmtWord(wordScore) {
             if(wordScore.score > 0) {
-                let result = `${wordScore.word} (${wordScore.score})`
-                if(wordScore.longest_bonus)
-                    return `<u>${result}</u>`;
-                else
-                    return result;
+                return `<div class="control"><div class="tags has-addons">
+                        <span class="tag${wordScore.longest_bonus ? ' is-warning' : ''}">${wordScore.word}</span>
+                        <span class="tag is-success">${wordScore.score}</span>
+                    </div></div>`;
             } else {
-                return `<s>${wordScore.word}</s>`
+                return fmtBad(wordScore.word);
             }
         }
 
         function fmtPlayer({playerId, name}) {
             let {total, words} = roundScoreSummary.wordsByPlayer(playerId);
-            let wordList = words.map(fmtWord).join(', ');
-            return `<li><i>${name}</i> <b>(${total})</b>: ${wordList}</li>`
+            let wordList = words.map(fmtWord).join('');
+            return `<li><i>${name}</i> <b>(${total})</b>: <div class="field is-grouped is-grouped-multiline">${wordList}</div></li>`
         }
         let scoreId = `scores-round-${roundScoreSummary.roundNo}`;
         $(`#${scoreId}`).remove();
+
+        let duplicates = '';
+        if(roundScoreSummary.duplicates.size) {
+            duplicates = `<div>
+                <i>Duplicaten:</i>
+                <div class="field is-grouped is-grouped-multiline">
+                    ${Array.from(roundScoreSummary.duplicates).map(fmtBad).join('')}
+                </div>
+            </div>`;
+        }
+
+        let invalidWords = '';
+        if(roundScoreSummary.dictInvalidWords.size) {
+            let manager = sessionContext().isManager;
+            let coreFmt = Array.from(roundScoreSummary.dictInvalidWords)
+                            .map(fmtBad).join('');
+            invalidWords = `<div ${manager ? 'id="dict-invalid"' : ''}>
+                <i>Niet in het woordenboek:</i>
+                <div class="field is-grouped is-grouped-multiline">${coreFmt}</div>
+                ${manager ? `<button class="button is-primary is-small">Goedkeuren</button>`: ''}
+            </div>`;
+        }
+
         let structure = `
             <article class="media" id="${scoreId}">
                 <figure class="media-left">
@@ -399,20 +441,28 @@ export const boggleController = function () {
                     <ul class="bulletless">
                         ${gameState.playerList.map(fmtPlayer).join('')}
                     </ul>
-                    <hr>
-                    <p>
-                        <i>Duplicaten:</i>
-                        ${Array.from(roundScoreSummary.duplicates).join(', ')}
-                    </p>
-                    <p>
-                        <i>Ongeldige woorden:</i>
-                        ${Array.from(roundScoreSummary.dictInvalidWords).join(', ')}
-                    </p>
+                    <hr>${duplicates ? duplicates : ''} ${invalidWords ? invalidWords : ''}
                     </div>
                 </div>
-            </article> `
+            </article> `;
         $('#score-container').prepend(structure);
 
+        if(sessionContext().isManager) {
+            // add approval toggle
+            $('#dict-invalid .score-zero').click(
+                function(event) {
+                    let targ = $(event.target);
+                    if(targ.hasClass('approved')) {
+                        targ.addClass("is-danger");
+                        targ.removeClass("is-light approved");
+                    } else {
+                        targ.removeClass("is-danger");
+                        targ.addClass("is-light approved");
+                    }
+                }
+            );
+            $('#dict-invalid button').click(approveWords);
+        }
     }
 
     /**
