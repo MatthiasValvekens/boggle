@@ -643,7 +643,9 @@ def trigger_scoring(session_id, round_no, round_seed):
     # either there were no submissions, or the session was nixed
     #  in between calls
     if not by_player:
-        return []
+        sess.round_scored = True
+        db.session.commit()
+        return
 
     cols = app.config['BOARD_COLS']
     rows = app.config['BOARD_ROWS']

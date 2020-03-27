@@ -296,7 +296,7 @@ export class RoundScoreSummary {
      * @returns {{total: int, words: WordScore[]}}
      */
     wordsByPlayer(playerId) {
-        return this._wordsByPlayer.get(playerId);
+        return this._wordsByPlayer.get(playerId) ?? {total: 0, words: []};
     }
 
     /** @returns {int} */
