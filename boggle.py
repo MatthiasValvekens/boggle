@@ -544,7 +544,8 @@ def format_scores(by_player):
     # figure out if there are multiple players with a word of maximal length
     for words in by_player.values():
         max_len = max(
-            len(w.word) for w in words if w.score and w.dictionary_valid
+            (len(w.word) for w in words if w.score and w.dictionary_valid),
+            default=0
         )
         if max_len > longest:
             longest = max_len
