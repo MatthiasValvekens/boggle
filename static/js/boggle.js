@@ -324,10 +324,9 @@ export const boggleController = function () {
             }
 
             // update availability of submission textarea
-            if(status === RoundState.PLAYING)
-                $('#words').prop("disabled", false).val('');
-            else
-                $('#words').prop("disabled", true);
+            let el = $('#words').prop("disabled", status !== RoundState.PLAYING);
+            if(gameStateAdvanced)
+                el.val('');
 
             // update board etc.
             if (gameStateAdvanced) {
@@ -341,6 +340,12 @@ export const boggleController = function () {
                 }
             }
 
+            // update scores
+            if(status === RoundState.SCORED) {
+                formatScores(gameState.scores);
+                $('#score-section').show();
+            }
+
             // update admin interface
             if(sessionContext().isManager) {
                 let canAdvance = status === RoundState.INITIAL || status === RoundState.SCORED;
@@ -350,6 +355,64 @@ export const boggleController = function () {
             heartbeatTimer = setTimeout(heartbeat, BOGGLE_CONFIG.heartbeatTimeout);
             toggleBusy(false);
         });
+    }
+
+    /**
+     * @param {RoundScoreSummary} roundScoreSummary
+     */
+    function formatScores(roundScoreSummary) {
+        /**
+         *
+         * @param {WordScore} wordScore
+         */
+        function fmtWord(wordScore) {
+            if(wordScore.score > 0) {
+                let result = `${wordScore.word} (${wordScore.score})`
+                if(wordScore.longest_bonus)
+                    return `<u>${result}</u>`;
+                else
+                    return result;
+            } else {
+                return `<s>${wordScore.word}</s>`
+            }
+        }
+
+        function fmtPlayer({playerId, name}) {
+            let {total, words} = roundScoreSummary.wordsByPlayer(playerId);
+            let wordList = words.map(fmtWord).join(', ');
+            return `<li><i>${name}</i> <b>(${total})</b>: ${wordList}</li>`
+        }
+        let scoreId = `scores-round-${roundScoreSummary.roundNo}`;
+        $(`#${scoreId}`).remove();
+        let structure = `
+            <article class="media" id="${scoreId}">
+                <figure class="media-left">
+                    <p class="image is-64x64">
+                        <span class="fas fa-trophy fa-3x"></span>
+                    </p>
+                </figure>
+                <div class="media-content">
+                    <div class="content">
+                    <p>
+                        <strong>Ronde ${roundScoreSummary.roundNo}</strong><br>
+                    </p>
+                    <ul class="bulletless">
+                        ${gameState.playerList.map(fmtPlayer).join('')}
+                    </ul>
+                    <hr>
+                    <p>
+                        <i>Duplicaten:</i>
+                        ${Array.from(roundScoreSummary.duplicates).join(', ')}
+                    </p>
+                    <p>
+                        <i>Ongeldige woorden:</i>
+                        ${Array.from(roundScoreSummary.dictInvalidWords).join(', ')}
+                    </p>
+                    </div>
+                </div>
+            </article> `
+        $('#score-container').prepend(structure);
+
     }
 
     /**

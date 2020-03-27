@@ -80,6 +80,23 @@ export class PlayerContext {
  */
 
 /**
+ * @typedef {Object} WordScore
+ * @property {int} score - The point value of this word
+ * @property {string} word - The word itself
+ * @property {boolean} longest_bonus - Indicates whether the word receives a bonus for being the longest
+ * @property {boolean} in_grid - Indicates whether the word appears in the grid
+ * @property {boolean} duplicate - Indicates whether this word was submitted by multiple players
+ * @property {boolean} dictionary_valid - Indicates whether this word appears in the dictionary
+ * @property {int[][]} path - Path representing this word on the grid
+ */
+
+/**
+ * @typedef {Object} PlayerScore
+ * @property {{name: string, player_id: int}} player - Player being scored
+ * @property {WordScore[]} words - Scores for each submitted word
+ */
+
+/**
  * @typedef {Object} ServerGameState
  * @property {string} created - Time when session was created
  * @property {{name: string, player_id: int}[]} players - List of players
@@ -87,7 +104,7 @@ export class PlayerContext {
  * @property {string} [round_start] - Start of current round
  * @property {string} [round_end] - End of current round
  * @property {BoardSpec} [board] - State of the current Boggle board
- * @property {Object} [scores] - Scoring object TODO
+ * @property {PlayerScore[]} [scores] - Scores for the current round
  */
 
 export class GameState {
@@ -103,6 +120,7 @@ export class GameState {
         this._boardCols = null;
         this._boardRows = null;
         this._boardState = null;
+        this._scores = null;
         /** @type {Player[]} */
         this._playerList = [{name: playerContext.name, playerId: playerContext.playerId}];
     }
@@ -124,7 +142,7 @@ export class GameState {
         this._roundNo = roundNo;
         switch(status) {
             case RoundState.SCORED:
-                // TODO update score data
+                this._scores = new RoundScoreSummary(roundNo, serverUpdate.scores);
             case RoundState.SCORING:
             case RoundState.PLAYING:
                 this._boardCols = serverUpdate.board.cols;
@@ -205,5 +223,78 @@ export class GameState {
 
     markSubmitted() {
         this._roundSubmitted = true;
+    }
+
+    get scores() {
+        return this._scores
+    }
+}
+
+/**
+ * @param {WordScore[]} scores
+ * @returns {int}
+ */
+function sumScores(scores) {
+    return scores.map(({score}) => score).reduce(
+        (x, y) => x + y, 0
+    )
+}
+
+export class RoundScoreSummary {
+    /**
+     * @param {int} roundNo
+     * @param {PlayerScore[]} scores
+     */
+    constructor(roundNo, scores) {
+        this._roundNo = roundNo;
+        /** @type {Map<int, {total: int, words: WordScore[]}>} */
+        this._wordsByPlayer = new Map(
+            scores.map(({player: {player_id}, words }) =>
+                [player_id, {total: sumScores(words), words: words}])
+        );
+        /** @type {Set<string>} */
+        this._duplicates = new Set();
+
+        // these are candidates to be approved manually
+        /** @type {Set<string>} */
+        this._dictInvalidWords = new Set();
+
+        for(const {words} of scores) {
+            for(const wordScore of words) {
+                if(!wordScore.in_grid)
+                    continue;
+                if(wordScore.duplicate) {
+                    this._duplicates.add(wordScore.word);
+                }
+                if(!wordScore.dictionary_valid) {
+                    this._dictInvalidWords.add(wordScore.word);
+                }
+            }
+        }
+
+
+    }
+
+    /** @returns {Set<string>} */
+    get duplicates() {
+        return this._duplicates;
+    }
+
+    /** @returns {Set<string>} */
+    get dictInvalidWords() {
+        return this._dictInvalidWords;
+    }
+
+    /**
+     * @param {int} playerId
+     * @returns {{total: int, words: WordScore[]}}
+     */
+    wordsByPlayer(playerId) {
+        return this._wordsByPlayer.get(playerId);
+    }
+
+    /** @returns {int} */
+    get roundNo() {
+        return this._roundNo;
     }
 }
