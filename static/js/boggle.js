@@ -220,7 +220,8 @@ export const boggleController = function () {
         let timerElement = document.getElementById('timer');
         if(timerGoalValue === null)
             timerElement.innerText = BOGGLE_CONFIG.emptyTimerString;
-        let delta = timerGoalValue - (new Date().getTime());
+        // add a fudge factor of half a second to mitigate timing issues with the server
+        let delta = timerGoalValue + 500 - (new Date().getTime());
         if(delta <= 0) {
             if(goalCallback !== null)
                 goalCallback();
@@ -290,7 +291,7 @@ export const boggleController = function () {
             let noTimerRunning = timerGoalValue === null;
             switch(status) {
                 case RoundState.PRE_START:
-                    // count down to start of round
+                    // count down to start of round + fudge factor
                     timerGoalValue = gameState.roundStart;
                     if(noTimerRunning)
                         timerControl(forceRefresh);
