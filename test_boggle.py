@@ -377,7 +377,7 @@ def test_single_player_scenario(client):
     assert not word5['dictionary_valid']
 
     response = request_json(
-        client, 'put', gc.session.approve_url, data={'word': 'TLEGI'}
+        client, 'put', gc.session.approve_url, data={'words': ['TleGi']}
     )
     rdata = response.get_json()
     assert response.status_code == 200, rdata

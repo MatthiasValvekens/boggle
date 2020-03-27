@@ -515,12 +515,12 @@ def approve_word(session_id, pepper, mgmt_token):
         abort(400, description="No word data supplied")
 
     try:
-        word = json_data['word'].upper()
+        words = set(w.upper() for w in json_data['words'])
     except (KeyError, AttributeError):
         return abort(400, description="No word data supplied")
 
     update_q = update(Word).values(dictionary_valid=True)\
-        .where(Word.word == word)\
+        .where(Word.word.in_(words))\
         .where(Word.submission_id == Submission.id)\
         .where(Submission.round_no == sess.round_no)\
         .where(Submission.player_id == Player.id)\
