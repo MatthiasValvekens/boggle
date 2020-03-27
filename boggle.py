@@ -213,7 +213,8 @@ def gen_player_token(session_id, player_id, pepper):
 @app.route('/', methods=['GET'])
 def index():
     return render_template(
-        'boggle.html', api_base_url=app.config['API_BASE_URL']
+        'boggle.html', api_base_url=app.config['API_BASE_URL'],
+        default_countdown=app.config['DEFAULT_COUNTDOWN_SECONDS']
     )
 
 

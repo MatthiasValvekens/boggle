@@ -240,7 +240,25 @@
                                     </button>
                                 </div>
                             </div>
-                            <button class="button is-fullwidth is-primary" id="advance-round">Volgende ronde</button>
+                            <div class="field has-addons">
+                                <div class="control has-icons-left is-expanded">
+                                    <input class="input" type="number" id="round-announce-countdown" value="{{ default_countdown }}" aria-label="aftelling naar start volgende ronde">
+                                    <span class="icon is-left is-small">
+                                        <span class="fas fa-stopwatch"></span>
+                                    </span>
+                                    <p class="help">
+                                        Aantal seconden tot volgende ronde.
+                                    </p>
+                                </div>
+                                <div class="control">
+                                    <button class="button is-primary" id="advance-round">
+                                        <span>Aankondigen</span>
+                                        <span class="icon is-small">
+                                            <span class="fas fa-chevron-right is-right"></span>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

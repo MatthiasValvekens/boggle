@@ -236,7 +236,7 @@ export const boggleController = function () {
     }
 
     function advanceRound() {
-        let requestData = {'until_start': 8}; //TODO placeholder
+        let requestData = {'until_start': parseInt($('#round-announce-countdown').val())};
         return callBoggleApi('POST', sessionContext().mgmtEndpoint, requestData, function () {
             $('#advance-round').prop("disabled", true);
         })
