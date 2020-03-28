@@ -418,7 +418,7 @@ export const boggleController = function () {
     function formatScores(roundScoreSummary) {
 
         function fmtBad(str, colClass) {
-            return `<div class="control score"><div class="tags has-addons">
+            return `<div class="control score"><div class="tags has-addons" translate="no">
                         <span class="tag ${colClass}">${str}</span>
                     </div></div>`;
         }
@@ -433,12 +433,12 @@ export const boggleController = function () {
         /** @param {WordScore} wordScore */
         function fmtWord(wordScore) {
             if(wordScore.score > 0) {
-                return `<div class="control score" ${fmtPathAttr(wordScore)}><div class="tags has-addons">
+                return `<div class="control score" ${fmtPathAttr(wordScore)}><div class="tags has-addons" translate="no">
                         <span class="tag${wordScore.longest_bonus ? ' is-warning' : ''}">${wordScore.word}</span>
                         <span class="tag is-success">${wordScore.score}</span>
                     </div></div>`;
             } else if(wordScore.in_grid) {
-                return `<div class="control score" ${fmtPathAttr(wordScore)}><div class="tags has-addons">
+                return `<div class="control score" ${fmtPathAttr(wordScore)}><div class="tags has-addons" translate="no">
                         <span class="tag is-danger">${wordScore.word}</span>
                     </div></div>`;
             } else {
