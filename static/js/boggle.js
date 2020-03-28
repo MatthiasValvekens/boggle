@@ -238,7 +238,7 @@ export const boggleController = function () {
 
     function advanceRound() {
         // clean up word approval UI
-        $('#dict-invalid .score-zero').off('click');
+        $('#dict-invalid .score').off('click');
         $('#dict-invalid button').remove();
         $('#dict-invalid').removeAttr('id');
 
@@ -346,14 +346,17 @@ export const boggleController = function () {
                 }
             }
 
+            let manager = sessionContext().isManager;
             // update scores
-            if(status === RoundState.SCORED && gameStateAdvanced) {
+            // FIXME do this more cleverly, without redrawing the entire thing every couple seconds
+            //  THat would also remove the need for the manager-specific hack
+            if(status === RoundState.SCORED && (!manager || gameStateAdvanced)) {
                 formatScores(gameState.scores);
                 $('#score-section').show();
             }
 
             // update admin interface
-            if(sessionContext().isManager) {
+            if(manager) {
                 let canAdvance = status === RoundState.INITIAL || status === RoundState.SCORED;
                 $('#advance-round').prop("disabled", !canAdvance);
             }
@@ -365,7 +368,7 @@ export const boggleController = function () {
 
     function approveWords() {
         let requestData = {
-            words: $('#dict-invalid .score-zero .approved').toArray().map((el) => el.innerText)
+            words: $('#dict-invalid .score .approved').toArray().map((el) => el.innerText)
         };
         let endpoint = sessionContext().mgmtEndpoint + '/approve_word';
         return callBoggleApi('put', endpoint, requestData, function({scores}) {
@@ -374,26 +377,46 @@ export const boggleController = function () {
         });
     }
 
+    /** @param {int[][]} path */
+    function highlightPath(path) {
+        $('#boggle td').removeAttr('data-order');
+        for(const [ix, [row, col]] of path.entries()) {
+            let cell = $(`#boggle tr:nth-child(${row + 1}) td:nth-child(${col + 1})`);
+            cell.attr('data-order', ix + 1);
+        }
+    }
+
     /**
      * @param {RoundScoreSummary} roundScoreSummary
      */
     function formatScores(roundScoreSummary) {
 
-        function fmtBad(str) {
-            return `<div class="control score-zero"><div class="tags has-addons">
-                        <span class="tag is-danger">${str}</span>
+        function fmtBad(str, colClass) {
+            return `<div class="control score"><div class="tags has-addons">
+                        <span class="tag ${colClass}">${str}</span>
                     </div></div>`;
+        }
+
+        /**
+         * @param {WordScore} wordScore
+         */
+        function fmtPathAttr(wordScore) {
+            return wordScore.in_grid ? `data-path='${JSON.stringify(wordScore.path)}'` : '';
         }
 
         /** @param {WordScore} wordScore */
         function fmtWord(wordScore) {
             if(wordScore.score > 0) {
-                return `<div class="control"><div class="tags has-addons">
+                return `<div class="control score" ${fmtPathAttr(wordScore)}><div class="tags has-addons">
                         <span class="tag${wordScore.longest_bonus ? ' is-warning' : ''}">${wordScore.word}</span>
                         <span class="tag is-success">${wordScore.score}</span>
                     </div></div>`;
+            } else if(wordScore.in_grid) {
+                return `<div class="control score" ${fmtPathAttr(wordScore)}><div class="tags has-addons">
+                        <span class="tag is-danger">${wordScore.word}</span>
+                    </div></div>`;
             } else {
-                return fmtBad(wordScore.word);
+                return fmtBad(wordScore.word, "is-dark");
             }
         }
 
@@ -410,7 +433,8 @@ export const boggleController = function () {
             duplicates = `<div>
                 <i>Duplicaten:</i>
                 <div class="field is-grouped is-grouped-multiline">
-                    ${Array.from(roundScoreSummary.duplicates).map(fmtBad).join('')}
+                    ${Array.from(roundScoreSummary.duplicates).map(
+                (x) => fmtBad(x, "is-danger")).join('')}
                 </div>
             </div>`;
         }
@@ -419,7 +443,7 @@ export const boggleController = function () {
         if(roundScoreSummary.dictInvalidWords.size) {
             let manager = sessionContext().isManager;
             let coreFmt = Array.from(roundScoreSummary.dictInvalidWords)
-                            .map(fmtBad).join('');
+                            .map((x) => fmtBad(x, "is-danger")).join('');
             invalidWords = `<div ${manager ? 'id="dict-invalid"' : ''}>
                 <i>Niet in het woordenboek:</i>
                 <div class="field is-grouped is-grouped-multiline">${coreFmt}</div>
@@ -448,9 +472,9 @@ export const boggleController = function () {
             </article> `;
         $('#score-container').prepend(structure);
 
+        // add approval toggle
         if(sessionContext().isManager) {
-            // add approval toggle
-            $('#dict-invalid .score-zero').click(
+            $('#dict-invalid .score').click(
                 function(event) {
                     let targ = $(event.target);
                     if(targ.hasClass('approved')) {
@@ -464,6 +488,14 @@ export const boggleController = function () {
             );
             $('#dict-invalid button').click(approveWords);
         }
+
+        // set path reveal onHover, de-hover clears the path display
+        $('.score[data-path]').hover(
+            function() {
+                let pathData = $(this).attr('data-path');
+                highlightPath(JSON.parse(pathData));
+            }, () => highlightPath([])
+        )
     }
 
     /**
@@ -478,7 +510,7 @@ export const boggleController = function () {
 
     return {
         listDictionaries: listDictionaries, joinExistingSession: joinExistingSession,
-        advanceRound: advanceRound, forceRefresh: forceRefresh
+        advanceRound: advanceRound
     }
 }();
 
