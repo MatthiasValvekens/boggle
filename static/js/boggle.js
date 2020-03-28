@@ -239,7 +239,7 @@ export const boggleController = function () {
     function advanceRound() {
         // clean up word approval UI
         $('#dict-invalid .score').off('click');
-        $('#dict-invalid button').remove();
+        $('#approve-button').remove();
         $('#dict-invalid').removeAttr('id');
 
         let requestData = {'until_start': parseInt($('#round-announce-countdown').val())};
@@ -330,9 +330,9 @@ export const boggleController = function () {
             }
 
             // update availability of submission textarea
-            let el = $('#words').prop("disabled", status !== RoundState.PLAYING);
+            $('#words-container').toggle(status === RoundState.PLAYING);
             if(gameStateAdvanced)
-                el.val('');
+                $('#words').val('');
 
             // update board etc.
             if (gameStateAdvanced) {
@@ -386,6 +386,10 @@ export const boggleController = function () {
         }
     }
 
+    const approveButton = `
+        <button class="button is-primary is-small" id="approve-button" disabled>
+            Goedkeuren
+        </button>`;
     /**
      * @param {RoundScoreSummary} roundScoreSummary
      */
@@ -423,16 +427,15 @@ export const boggleController = function () {
         function fmtPlayer({playerId, name}) {
             let {total, words} = roundScoreSummary.wordsByPlayer(playerId);
             let wordList = words.map(fmtWord).join('');
-            return `<li><i>${name}</i> <b>(${total})</b>: <div class="field is-grouped is-grouped-multiline">${wordList}</div></li>`
+            return `<div class="score-list-container"> <div class="field is-grouped is-grouped-multiline"  data-header="${name} (${total})">${wordList}</div></div>`
         }
         let scoreId = `scores-round-${roundScoreSummary.roundNo}`;
         $(`#${scoreId}`).remove();
 
         let duplicates = '';
         if(roundScoreSummary.duplicates.size) {
-            duplicates = `<div>
-                <i>Duplicaten:</i>
-                <div class="field is-grouped is-grouped-multiline">
+            duplicates = `<div class="score-list-container">
+                <div class="field is-grouped is-grouped-multiline" data-header="Duplicaten">
                     ${Array.from(roundScoreSummary.duplicates).map(
                 (x) => fmtBad(x, "is-danger")).join('')}
                 </div>
@@ -444,11 +447,9 @@ export const boggleController = function () {
             let manager = sessionContext().isManager;
             let coreFmt = Array.from(roundScoreSummary.dictInvalidWords)
                             .map((x) => fmtBad(x, "is-danger")).join('');
-            invalidWords = `<div ${manager ? 'id="dict-invalid"' : ''}>
-                <i>Niet in het woordenboek:</i>
-                <div class="field is-grouped is-grouped-multiline">${coreFmt}</div>
-                ${manager ? `<button class="button is-primary is-small">Goedkeuren</button>`: ''}
-            </div>`;
+            invalidWords = `<div class="score-list-container" ${manager ? 'id="dict-invalid"' : ''}>
+                <div class="field is-grouped is-grouped-multiline" data-header="Niet in woordenboek">${coreFmt}</div>
+            </div>${manager ? approveButton: ''}`;
         }
 
         let structure = `
@@ -463,9 +464,7 @@ export const boggleController = function () {
                     <p>
                         <strong>Ronde ${roundScoreSummary.roundNo}</strong><br>
                     </p>
-                    <ul class="bulletless">
-                        ${gameState.playerList.map(fmtPlayer).join('')}
-                    </ul>
+                    ${gameState.playerList.map(fmtPlayer).join('')}
                     <hr>${duplicates ? duplicates : ''} ${invalidWords ? invalidWords : ''}
                     </div>
                 </div>
@@ -475,18 +474,21 @@ export const boggleController = function () {
         // add approval toggle
         if(sessionContext().isManager) {
             $('#dict-invalid .score').click(
-                function(event) {
-                    let targ = $(event.target);
+                function() {
+                    let targ = $('span', this);
                     if(targ.hasClass('approved')) {
                         targ.addClass("is-danger");
-                        targ.removeClass("is-light approved");
+                        targ.removeClass("is-success approved");
                     } else {
                         targ.removeClass("is-danger");
-                        targ.addClass("is-light approved");
+                        targ.addClass("is-success approved");
                     }
+                    let candidates = $('#dict-invalid .score .approved').length;
+                    // only enable approve-button if there are words to approve
+                    $('#approve-button').prop("disabled", !candidates);
                 }
             );
-            $('#dict-invalid button').click(approveWords);
+            $('#approve-button').click(approveWords);
         }
 
         // set path reveal onHover, de-hover clears the path display
