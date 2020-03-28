@@ -296,7 +296,13 @@ export class RoundScoreSummary {
      * @returns {{total: int, words: WordScore[]}}
      */
     wordsByPlayer(playerId) {
-        return this._wordsByPlayer.get(playerId) ?? {total: 0, words: []};
+        let result = this._wordsByPlayer.get(playerId);
+        if (result === undefined || result === null) {
+            return {total: 0, words: []};
+        } else {
+            return result;
+        }
+
     }
 
     /** @returns {int} */
