@@ -123,8 +123,14 @@
             #inv-token:invalid:not(:placeholder-shown){
                 border-color: red;
             }
+
             #inv-token:invalid:focus:not(:placeholder-shown) {
                 box-shadow: 0 0 0 .125em #8d181b40;
+            }
+
+            #touch-input-buttons {
+                justify-content: center;
+                margin-top: 0.5rem;
             }
         </style>
         <script type="text/javascript" src="/static/js/jquery.min.js"></script>
@@ -135,6 +141,10 @@
             $(document).ready(
                 function() {
                     boggle.boggleController.listDictionaries();
+
+                    $('#boggle').on('click', 'td', boggle.boggleController.touch.handleClick);
+                    $('#touch-input-append').click(boggle.boggleController.touch.appendInput);
+                    $('#touch-input-clear').click(boggle.boggleController.touch.clearInput);
                     $('#join-session').click(boggle.boggleController.joinExistingSession);
                     $('#advance-round').click(boggle.boggleController.advanceRound);
                     $('#inv-token-display-copy').click(function () {
@@ -250,6 +260,14 @@
                                 <tr><td>-</td><td>-</td><td>-</td><td>-</td></tr>
                                 <tr><td>-</td><td>-</td><td>-</td><td>-</td></tr>
                             </table>
+                            <div id="touch-input-buttons" class="buttons" style="visibility: hidden">
+                                <button class="button is-small is-success" id="touch-input-append">
+                                    Toevoegen
+                                </button>
+                                <button class="button is-small is-light" id="touch-input-clear">
+                                    Wissen
+                                </button>
+                            </div>
                         </div>
                         <div class="column is-4">
                             <h6 class="has-text-weight-bold has-text-centered">Spelers</h6>

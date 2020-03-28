@@ -335,8 +335,10 @@ export const boggleController = function () {
 
             // update availability of submission textarea
             $('#words-container').toggle(status === RoundState.PLAYING);
-            if(gameStateAdvanced)
+            if(gameStateAdvanced) {
                 $('#words').val('');
+                touchInputController.clearInput();
+            }
 
             // update board etc.
             if (gameStateAdvanced) {
@@ -401,7 +403,7 @@ export const boggleController = function () {
 
     /** @param {int[][]} path */
     function highlightPath(path) {
-        clearHighlight();
+        touchInputController.clearInput();
         for(const [ix, [row, col]] of path.entries()) {
             let cell = $(`#boggle tr:nth-child(${row + 1}) td:nth-child(${col + 1})`);
             cell.attr('data-order', ix + 1);
@@ -523,9 +525,64 @@ export const boggleController = function () {
         }
     }
 
+    function touchInput() {
+        let currentRow = null;
+        let currentCol = null;
+        const cellsVisited = new Set();
+        let inputCollected = [];
+        function handleClick() {
+            if(gameState === null || gameState.status !== RoundState.PLAYING)
+                return;
+
+            const colClicked = $(this).index();
+            const rowClicked = $(this).parent().index();
+            // sets only work with reference equality in JS (lol),
+            // so strings it is
+            const cellClicked = `${rowClicked}_${colClicked}`;
+            if(currentRow !== null && currentCol !== null) {
+                // check if this cell is eligible
+                let seenBefore = cellsVisited.has(cellClicked);
+                // the case where both of these are 0 is excluded by the seenBefore check
+                let neighbour = (Math.abs(currentCol - colClicked) <= 1)
+                        && (Math.abs(currentRow - rowClicked) <= 1);
+                if(seenBefore || !neighbour)
+                    return;
+            } else clearInput();
+
+            const charInCell = $(this).text().trim();
+            cellsVisited.add(cellClicked);
+            inputCollected.push(charInCell);
+            currentRow = rowClicked;
+            currentCol = colClicked;
+            $(this).attr('data-order', inputCollected.length)
+            $('#touch-input-buttons').css('visibility', 'visible');
+        }
+
+        function clearInput() {
+            $('#touch-input-buttons').css('visibility', 'hidden');
+            clearHighlight();
+            inputCollected = [];
+            cellsVisited.clear();
+            currentCol = null;
+            currentRow = null;
+        }
+
+        function appendInput() {
+            let wordArea = $('#words');
+            wordArea.val(`${wordArea.val()} ${inputCollected.join('')}`);
+            clearInput();
+        }
+
+        return {
+            clearInput: clearInput,  handleClick: handleClick, appendInput: appendInput
+        }
+    }
+    const touchInputController = touchInput();
+
+
     return {
         listDictionaries: listDictionaries, joinExistingSession: joinExistingSession,
-        advanceRound: advanceRound
+        advanceRound: advanceRound, touch: touchInputController
     }
 }();
 
