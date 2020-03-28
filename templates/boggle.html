@@ -13,6 +13,7 @@
                 margin-left: auto;
                 margin-right: auto;
             }
+
             table.boggle-grid td {
                 border: solid medium;
                 height: 2.5em;
@@ -22,9 +23,11 @@
                 font-size: 120%;
                 position: relative;
             }
+
             table.boggle-grid td[data-order] {
                 background-color: #9c1a1c30;
             }
+
             table.boggle-grid td[data-order]::after {
                 content: attr(data-order);
                 position: absolute;
@@ -34,6 +37,7 @@
                 padding-right: 0.2rem;
                 font-size: small;
             }
+
             #timer-box {
                 font-size: 3rem;
                 display: flex;
@@ -42,26 +46,32 @@
                 height: 100%;
                 width: 100%;
             }
+
             #player-list {
                 display: flex;
                 justify-content: center;
             }
+
             #player-list ul {
                 margin-top: 0.5rem;
                 list-style-type: none;
             }
+
             #player-list li::before {
                 content: "\f007";
                 font-family: "FontAwesome";
                 margin:0 0.4em 0 -1.2em;
                 color: #7a7a7a;
             }
+
             ul.bulletless {
                 list-style-type: none;
             }
+
             #player-list li.me {
                 font-weight: bold;
             }
+
             #loading-icon {
                 position: fixed;
                 left: 0;
@@ -70,9 +80,11 @@
                 height: 100%;
                 font-size: 300%;
             }
+
             #loading-icon span {
                 padding: 0.5rem;
             }
+
             .score {
                 cursor: pointer;
                 user-select: none;
