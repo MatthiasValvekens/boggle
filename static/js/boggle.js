@@ -377,6 +377,20 @@ export const boggleController = function () {
         });
     }
 
+    function approveSelectHandler() {
+        let targ = $('span', this);
+        if(targ.hasClass('approved')) {
+            targ.addClass("is-danger");
+            targ.removeClass("is-success approved");
+        } else {
+            targ.removeClass("is-danger");
+            targ.addClass("is-success approved");
+        }
+        let candidates = $('#dict-invalid .score .approved').length;
+        // only enable approve-button if there are words to approve
+        $('#approve-button').prop("disabled", !candidates);
+    }
+
     /** @param {int[][]} path */
     function highlightPath(path) {
         $('#boggle td').removeAttr('data-order');
@@ -384,6 +398,14 @@ export const boggleController = function () {
             let cell = $(`#boggle tr:nth-child(${row + 1}) td:nth-child(${col + 1})`);
             cell.attr('data-order', ix + 1);
         }
+    }
+
+    // set path reveal onHover, de-hover clears the path display
+    function highlightPathHandler(event) {
+        if(event.type === 'mouseenter') {
+            let pathData = $(this).attr('data-path');
+            highlightPath(JSON.parse(pathData));
+        } else highlightPath([]);
     }
 
     const approveButton = `
@@ -464,7 +486,9 @@ export const boggleController = function () {
                     <p>
                         <strong>Ronde ${roundScoreSummary.roundNo}</strong><br>
                     </p>
+                    <div class="player-scores">
                     ${gameState.playerList.map(fmtPlayer).join('')}
+                    </div>
                     <hr>${duplicates ? duplicates : ''} ${invalidWords ? invalidWords : ''}
                     </div>
                 </div>
@@ -473,31 +497,11 @@ export const boggleController = function () {
 
         // add approval toggle
         if(sessionContext().isManager) {
-            $('#dict-invalid .score').click(
-                function() {
-                    let targ = $('span', this);
-                    if(targ.hasClass('approved')) {
-                        targ.addClass("is-danger");
-                        targ.removeClass("is-success approved");
-                    } else {
-                        targ.removeClass("is-danger");
-                        targ.addClass("is-success approved");
-                    }
-                    let candidates = $('#dict-invalid .score .approved').length;
-                    // only enable approve-button if there are words to approve
-                    $('#approve-button').prop("disabled", !candidates);
-                }
-            );
+            $('#dict-invalid').on("click", ".score", approveSelectHandler);
             $('#approve-button').click(approveWords);
         }
 
-        // set path reveal onHover, de-hover clears the path display
-        $('.score[data-path]').hover(
-            function() {
-                let pathData = $(this).attr('data-path');
-                highlightPath(JSON.parse(pathData));
-            }, () => highlightPath([])
-        )
+        $('.player-scores').on('mouseenter mouseleave', '.score[data-path]', highlightPathHandler);
     }
 
     /**
