@@ -238,9 +238,13 @@ export const boggleController = function () {
 
     function advanceRound() {
         // clean up word approval UI
-        $('#dict-invalid .score').off('click');
+        let wordApproval = $('#dict-invalid');
+        wordApproval.off('click');
         $('#approve-button').remove();
-        $('#dict-invalid').removeAttr('id');
+        wordApproval.removeAttr('id');
+
+        // clean up path hover listeners
+        $('.player-scores').off();
 
         let requestData = {'until_start': parseInt($('#round-announce-countdown').val())};
         return callBoggleApi('POST', sessionContext().mgmtEndpoint, requestData, function () {
@@ -253,7 +257,7 @@ export const boggleController = function () {
             throw "Cannot submit";
         if(gameState.roundSubmitted)
             return;
-        const words = $('#words').val().toUpperCase().split(/\s+/);
+        const words = $('#words').val().trim().toUpperCase().split(/\s+/);
         let submission = {'round_no': gameState.roundNo, 'words': words};
         callBoggleApi('put', playerContext().playEndpoint, submission, forceRefresh);
         gameState.markSubmitted();
@@ -391,9 +395,13 @@ export const boggleController = function () {
         $('#approve-button').prop("disabled", !candidates);
     }
 
+    function clearHighlight() {
+        $('#boggle td').removeAttr('data-order');
+    }
+
     /** @param {int[][]} path */
     function highlightPath(path) {
-        $('#boggle td').removeAttr('data-order');
+        clearHighlight();
         for(const [ix, [row, col]] of path.entries()) {
             let cell = $(`#boggle tr:nth-child(${row + 1}) td:nth-child(${col + 1})`);
             cell.attr('data-order', ix + 1);
@@ -405,7 +413,7 @@ export const boggleController = function () {
         if(event.type === 'mouseenter') {
             let pathData = $(this).attr('data-path');
             highlightPath(JSON.parse(pathData));
-        } else highlightPath([]);
+        } else clearHighlight();
     }
 
     const approveButton = `
@@ -501,7 +509,8 @@ export const boggleController = function () {
             $('#approve-button').click(approveWords);
         }
 
-        $('.player-scores').on('mouseenter mouseleave', '.score[data-path]', highlightPathHandler);
+        $(`#${scoreId} .player-scores`).on('mouseenter mouseleave',
+            '.score[data-path]', highlightPathHandler);
     }
 
     /**
