@@ -109,3 +109,6 @@ celerybeat.pid
 .idea
 
 .meta
+
+# ignore wordlists
+dictionaries/
