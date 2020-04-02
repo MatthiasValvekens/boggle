@@ -7,6 +7,7 @@ import os
 import logging
 import glob
 import re
+import unidecode
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +40,17 @@ def roll(seed, *, dice_config, board_dims=None):
     return (rows, cols), board
 
 
+def clean_word(word):
+    return unidecode.unidecode(word).upper()
+
+
 class BoggleWord:
     """
-    Utility wrapper to force Boggle words to be upper case, and compare
-    with the QU -> Q substitution.
+    Utility wrapper to force Boggle words to be upper case, strip diacritics and
+    compare with the QU -> Q substitution.
     """
     def __init__(self, word):
-        self.word = word = word.upper()
+        self.word = word = clean_word(word)
         self._qnormd = word.replace('QU', 'Q')
 
     def __str__(self):
@@ -171,22 +176,26 @@ def score_players(words_by_player, board, dictionary=None):
 
     # eliminate duplicates between players
     blacklist = set(
-        duplicate_entries(map(lambda x: x.word, chain(*words_by_player)))
+        duplicate_entries(
+            map(lambda x: BoggleWord(x.word), chain(*words_by_player))
+        )
     )
 
     no_dict = dictionary is None
 
     for w in chain(*words_by_player):
-        score, path = score_word(w.word, board)
-        blacklisted = w.word in blacklist
+        wrapped = BoggleWord(w.word)
+        cleaned = str(wrapped)
+        score, path = score_word(cleaned, board)
+        blacklisted = wrapped in blacklist
         # non-dictionary words do get a nonzero score, since they
         #  may be manually approved.
         # Hence, the "proper" score still needs to be saved in the DB
         w.score = score if not blacklisted else 0
         # path may still be valid, of course
-        # in that case, we wasted a tiny bit of resources
         w.duplicate = blacklisted
-        w.dictionary_valid = no_dict or w.word in dictionary
+        w.dictionary_valid = no_dict or cleaned in dictionary
+        print(cleaned, no_dict, w.dictionary_valid)
         w.path_array = json.dumps(path) if path is not None else None
 
 
@@ -292,9 +301,13 @@ class DictionaryServiceProvider(FileServiceProvider):
     def name_services(cls, file_name, file_handle):
         return DictionaryServiceProvider.dictionary_name(file_name)
 
+    @staticmethod
+    def clean_dict(dict_words):
+        return {clean_word(word.rstrip()) for word in dict_words}
+
     @classmethod
     def read_services(cls, file_name, file_handle):
-        words = {word.rstrip().upper() for word in file_handle}
+        words = DictionaryServiceProvider.clean_dict(file_handle)
         yield DictionaryServiceProvider.dictionary_name(file_name), words
 
 

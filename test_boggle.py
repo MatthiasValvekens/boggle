@@ -15,7 +15,9 @@ def client():
     boggle.app.config['DEFAULT_COUNTDOWN_SECONDS'] = 0
     boggle.app.config['DISABLE_ASYNC_SCORING'] = True
     boggle.trigger_scoring._dicts = {
-        'testing': ['AQULGE', 'QLGE', 'ALGEIG', 'DGIEIHLFLO', 'QULGE'],
+        'testing': boggle_utils.DictionaryServiceProvider.clean_dict(
+            ['AQULGE', 'QLGE', 'ALGEIG', 'DGIEìHLFLO', 'QULGE']
+        ),
         'testing2': []
     }
     boggle.trigger_scoring._dict_list = ('testing', 'testing2')
@@ -328,7 +330,7 @@ def test_single_player_scenario(client):
     assert 'board' in rdata
 
     words_to_submit = [
-        'AQULGE', 'QLGE', 'ALGEIG', 'DGIEIHLFLO', 'QULGE', 'TLEGI'
+        'AQULGE', 'QLGE', 'ALGEIG', 'DGIÉÎHLFLO', 'QULGE', 'TLEGI'
     ]
 
     # first, attempt a submission for the wrong round
@@ -368,26 +370,28 @@ def test_single_player_scenario(client):
     #  so we should get back 3 items, in alphabetical order
     word1, word2, word3, word4, word5 = scored_words
 
+    # test this one first, easier to debug this way (since this guy being
+    #  marked as invalid changes the word with the highest score)
+    assert word3['word'] == 'DGIEIHLFLO'
+    assert len(word3['path']) == 10
+    assert not word3['duplicate']
+    assert word3['dictionary_valid']
+    assert word3['score'] == 11 * 2  # double score bonus
+
     assert word1['word'] == 'ALGEIG'
-    assert word1['score'] == 0
     assert word1['path'] is None
     assert not word1['duplicate']
     assert word1['dictionary_valid']
+    assert word1['score'] == 0
 
     # we supplied a version with QU, so it should be returned as such
     assert word2['word'] == 'AQULGE'
+    assert not word2['duplicate']
+    assert word2['dictionary_valid']
     # QU counts as two separate letters for scoring purposes
     assert word2['score'] == 3
     # ... but the path should have length 5
     assert len(word2['path']) == 5
-    assert not word2['duplicate']
-    assert word2['dictionary_valid']
-
-    assert word3['word'] == 'DGIEIHLFLO'
-    assert word3['score'] == 11 * 2
-    assert len(word3['path']) == 10
-    assert not word3['duplicate']
-    assert word3['dictionary_valid']
 
     # if both a Q-version and a non-Q version are submitted,
     # the actual value returned is undefined
@@ -397,9 +401,10 @@ def test_single_player_scenario(client):
     assert word4['word'] in ('QLGE', 'QULGE')
 
     assert word5['word'] == 'TLEGI'
-    assert word5['score'] == 0
+    assert word5['path'] is not None
     assert not word5['duplicate']
     assert not word5['dictionary_valid']
+    assert word5['score'] == 0
 
     response = request_json(
         client, 'put', gc.session.approve_url, data={'words': ['TleGi']}
