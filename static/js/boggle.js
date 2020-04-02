@@ -150,26 +150,37 @@ export const boggleController = function () {
     /**
      * Retrieve a list of dictionaries from the server
      */
-    function listDictionaries() {
+    function getOptions() {
         $('#spawn-session').addClass("is-loading").prop("disabled", true);
-        return boggleAPIGet( '/options', function({dictionaries}) {
-            const selector = $('#dictionary');
+        return boggleAPIGet( '/options', function({dictionaries, dice_configs}) {
+            const dictSelect = $('#dictionary');
             dictionaries.forEach(
                 function (dictionary) {
-                    selector.append(
+                    dictSelect.append(
                         `<option value="${dictionary}">${dictionary}</option>`
                     );
                 }
             );
+            const diceSelect = $('#dice-config');
+            dice_configs.forEach(
+                function(dice) {
+                    diceSelect.append(
+                        `<option value="${dice}">${dice}</option>`
+                    )
+                }
+            );
+
             // set up the spawn session button
             $('#spawn-session').removeClass("is-loading")
                 .click(function(){
                     /** @type {string} */
                     const name = retrievePlayerName();
-                    if(name === null || !selector.get(0).reportValidity())
+                    if(name === null || !dictSelect.get(0).reportValidity()
+                        || !diceSelect.get(0).reportValidity())
                         return;
                     const dictionary = $('#dictionary option:selected').val();
-                    spawnSession(name, dictionary);
+                    const diceConfig = $('#dice-config option:selected').val();
+                    spawnSession(name, diceConfig, dictionary);
                 }).prop("disabled", false);
             }
         )
@@ -178,16 +189,15 @@ export const boggleController = function () {
     /**
      * Create a session.
      * @param {!string} playerName
+     * @param {!string} diceConfig
      * @param {?string} dictionary
      */
-    function spawnSession(playerName, dictionary=null) {
+    function spawnSession(playerName, diceConfig, dictionary=null) {
         _sessionContext = null;
 
-        let data;
+        let data = {diceConfig: diceConfig};
         if(dictionary !== null)
-            data = {'dictionary': dictionary};
-        else
-            data = {};
+            data.dictionary = dictionary;
         return callBoggleApi(
             'post', '/session', data,
             function ({session_id, pepper, session_mgmt_token, session_token}) {
@@ -554,7 +564,7 @@ export const boggleController = function () {
             inputCollected.push(charInCell);
             currentRow = rowClicked;
             currentCol = colClicked;
-            $(this).attr('data-order', inputCollected.length)
+            $(this).attr('data-order', inputCollected.length);
             $('#touch-input-buttons').css('visibility', 'visible');
         }
 
@@ -581,7 +591,7 @@ export const boggleController = function () {
 
 
     return {
-        listDictionaries: listDictionaries, joinExistingSession: joinExistingSession,
+        getOptions: getOptions, joinExistingSession: joinExistingSession,
         advanceRound: advanceRound, touch: touchInputController
     }
 }();

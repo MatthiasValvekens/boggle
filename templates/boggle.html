@@ -140,7 +140,7 @@
             boggle.BOGGLE_CONFIG.apiBaseURL = "{{ api_base_url }}";
             $(document).ready(
                 function() {
-                    boggle.boggleController.listDictionaries();
+                    boggle.boggleController.getOptions();
 
                     $('#boggle').on('click', 'td', boggle.boggleController.touch.handleClick);
                     $('#touch-input-append').click(boggle.boggleController.touch.appendInput);
@@ -190,6 +190,18 @@
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
                             <h6 class="title is-4">Nieuwe sessie opstarten</h6>
                             <div class="field has-addons">
+                                <div class="control is-expanded has-icons-left">
+                                    <div class="select is-fullwidth" id="dice-config-select">
+                                        <select id="dice-config" aria-label="dobbelsteen selecteren" required>
+                                            <option value="" disabled selected hidden>
+                                                Dobbelstenen
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <span class="icon is-small is-left">
+                                        <span class="fas fa-dice-d6"></span>
+                                    </span>
+                                </div>
                                 <div class="control is-expanded has-icons-left">
                                     <div class="select is-fullwidth" id="dictionary-select">
                                         <select id="dictionary" aria-label="woordenboek selecteren" required>
