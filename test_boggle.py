@@ -27,11 +27,20 @@ def client():
         yield client
 
 
+INTL_DICE_CONFIG = (
+    'ETUKNO', 'EVGTIN', 'DECAMP', 'IELRUW',
+    'EHIFSE', 'RECALS', 'ENTDOS', 'OFXRIA',
+    'NAVEDZ', 'EIOATA', 'GLENYU', 'BMAQJO',
+    'TLIBRA', 'SPULTE', 'AIMSOR', 'ENHRIS'
+)
+
+DICE_CONFIG_DEFAULT = 'International'
+
 # AQLT
 # OLEO
 # FDGI
 # LHIE
-DEFAULT_TESTING_BOARD = boggle_utils.roll(5)
+DIMS, DEFAULT_TESTING_BOARD = boggle_utils.roll(5, dice_config=INTL_DICE_CONFIG)
 
 
 def tuple_paths(word, board):
@@ -52,6 +61,23 @@ def test_board_path():
     assert len(paths) == 0
     paths = tuple_paths('BLHIE', DEFAULT_TESTING_BOARD)
     assert len(paths) == 0
+
+
+def test_read_dice():
+    def dice_cmp(dice):
+        return frozenset(frozenset(x) for x in dice)
+    config_list = list(boggle_utils.DiceConfigServiceProvider.discover('dice'))
+    assert 'International' in config_list
+    assert 'English (new)' in config_list
+    assert 'English (classic)' in config_list
+
+    configs = boggle_utils.DiceConfigServiceProvider('dice')
+    config_list = list(configs)
+    assert 'International' in config_list
+    assert 'English (new)' in config_list
+    assert 'English (classic)' in config_list
+
+    assert dice_cmp(configs[DICE_CONFIG_DEFAULT]) == dice_cmp(INTL_DICE_CONFIG)
 
 
 SessionData = namedtuple(
@@ -78,15 +104,14 @@ def request_json(client, method, url, *args, data, headers=None, **kwargs):
     return req(url, *args, data=json.dumps(data), headers=req_headers, **kwargs)
 
 
-def create_session(client, dictionary=None) -> SessionData:
+def create_session(client, dictionary=None, dice_config=None) -> SessionData:
     with boggle.app.app_context():
         spawn_url = flask.url_for('spawn_session')
-    if dictionary is None:
-        response = client.post(spawn_url)
-    else:
-        response = request_json(
-            client, 'post', spawn_url, data={'dictionary': dictionary}
-        )
+    dice_config = dice_config or DICE_CONFIG_DEFAULT
+    req_data = {'dice_config': dice_config}
+    if dictionary is not None:
+        req_data['dictionary'] = dictionary
+    response = request_json(client, 'post', spawn_url, data=req_data)
     rdata = response.get_json()
     assert response.status_code == 201, rdata
     session_id = rdata['session_id']
@@ -133,8 +158,8 @@ def create_player_in_session(client, sess: SessionData = None, name='tester',
     )
 
 
-def test_dictionaries(client):
-    response = client.get('/dictionaries')
+def test_options(client):
+    response = client.get('/options')
     rdata = response.get_json()
     assert rdata['dictionaries'] == ['testing', 'testing2'], rdata
 

@@ -35,6 +35,11 @@ DATE_FORMAT_STR = '%Y-%m-%d %H:%M:%S'
 MAX_NAME_LENGTH = 250
 
 
+dice_configs = boggle_utils.DiceConfigServiceProvider(
+    app.config['DICE_CONFIG_DIR']
+)
+
+
 def init_db():
     """
     Set up the database schema and/or truncate all sessions.
@@ -70,7 +75,11 @@ class BoggleSession(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    dice_config = db.Column(db.String(250), nullable=False)
     dictionary = db.Column(db.String(250), nullable=True)
+    # TODO actually allow the user to specify this value
+    round_minutes = db.Column(db.Integer, nullable=False,
+                              default=app.config['ROUND_DURATION_MINUTES'])
 
     # volatile data
     round_no = db.Column(db.Integer, nullable=False, default=0)
@@ -218,36 +227,58 @@ def index():
     )
 
 
-@app.route('/dictionaries', methods=['GET'])
-def list_dictionaries():
-    return {'dictionaries': trigger_scoring.dicts_available}
+@app.route('/options', methods=['GET'])
+def list_options():
+    return {
+        'dictionaries': trigger_scoring.dicts_available,
+        'dice_configs': list(dice_configs)
+    }
 
 
 @app.route('/session', methods=['POST'])
 def spawn_session():
     session_settings = request.get_json()
     dicts_available = trigger_scoring.dicts_available
-    none_requested = False
+    no_dic_requested = False
     selected_dictionary = None
+    selected_dice_config = app.config['DEFAULT_DICE_CONFIG']
     if session_settings is not None:
+        # set chosen dictionary
         try:
             selected_dictionary = session_settings['dictionary']
             # if None is passed in, we disable the dictionary
             if selected_dictionary is None:
-                none_requested = True
+                no_dic_requested = True
             elif selected_dictionary not in dicts_available:
-                abort(404,
-                      f'The dictionary {selected_dictionary} is not available')
+                abort(
+                    404,
+                    f"The dictionary '{selected_dictionary}' is not available"
+                )
         except KeyError:
             pass
-    if selected_dictionary is None and not none_requested:
+
+        # set chosen dice config
+        selected_dice_config = session_settings.get(
+            'dice_config', selected_dice_config
+        )
+        if selected_dice_config not in dice_configs:
+            abort(
+                404,
+                f"The dice configuration '{selected_dice_config}' is "
+                "not available."
+            )
+
+    if selected_dictionary is None and not no_dic_requested:
         try:
             selected_dictionary, = dicts_available
         except ValueError:
             # can't select a default
+            # TODO allow env-specified default
             pass
 
-    new_session = BoggleSession(dictionary=selected_dictionary)
+    new_session = BoggleSession(
+        dictionary=selected_dictionary, dice_config=selected_dice_config
+    )
     db.session.add(new_session)
     db.session.commit()
     pepper = secrets.token_bytes(8).hex()
@@ -375,7 +406,7 @@ def session_state(session_id, pepper):
         round_seed = app.config['TESTING_SEED']
     else:
         round_seed = str(round_no) + pepper + server_key.hex()
-    duration = timedelta(minutes=app.config['ROUND_DURATION_MINUTES'])
+    duration = timedelta(minutes=sess.round_minutes)
     round_end = round_start + duration
     now = datetime.utcnow()
     response['round_start'] = round_start.strftime(DATE_FORMAT_STR)
@@ -386,12 +417,8 @@ def session_state(session_id, pepper):
         response['status'] = Status.PRE_START
         return response
 
-    cols = app.config['BOARD_COLS']
-    rows = app.config['BOARD_ROWS']
-    board = boggle_utils.roll(
-        round_seed, board_dims=(rows, cols),
-        dice_config=app.config['DICE_CONFIG']
-    )
+    dice = dice_configs[sess.dice_config]
+    (rows, cols), board = boggle_utils.roll(round_seed, dice_config=dice)
     response['board'] = {'cols': cols, 'rows': rows, 'dice': board}
 
     all_submitted = db.session.query(~sess.submissions_pending()).scalar()
@@ -406,13 +433,15 @@ def session_state(session_id, pepper):
 
         # mainly for testing purposes
         if app.config['DISABLE_ASYNC_SCORING']:
-            trigger_scoring(session_id, round_no, round_seed)
+            trigger_scoring(session_id, round_no, round_seed, sess.dice_config)
             # refresh session object
             sess = BoggleSession.query \
                 .filter(BoggleSession.id == session_id).one_or_none()
         else:
             # asynchronously queue scoring
-            trigger_scoring.delay(session_id, round_no, round_seed)
+            trigger_scoring.delay(
+                session_id, round_no, round_seed, sess.dice_config
+            )
 
     if sess.round_scored:
         # if scores have been computed by now, return them
@@ -461,8 +490,7 @@ def play(session_id, pepper, player_id, player_token):
 
     round_no = sess.round_no
     deadline = round_start + timedelta(
-        minutes=app.config['ROUND_DURATION_MINUTES'],
-        seconds=app.config['GRACE_PERIOD_SECONDS']
+        minutes=sess.round_minutes, seconds=app.config['GRACE_PERIOD_SECONDS']
     )
     if sess.round_scored is not None or now > deadline:
         return abort(409, description="Round already ended")
@@ -598,7 +626,7 @@ class DictionaryTask(celery.Task, ABC):
     def dictionaries(self):
         if self._dicts is None:
             dirname = app.config['DICTIONARY_DIR']
-            self._dicts = boggle_utils.DictionaryService(dirname)
+            self._dicts = boggle_utils.DictionaryServiceProvider(dirname)
             # populate _dict_list too
             self._dict_list = tuple(self._dicts)
         return self._dicts
@@ -610,14 +638,14 @@ class DictionaryTask(celery.Task, ABC):
         if self._dict_list is None:
             dirname = app.config['DICTIONARY_DIR']
             self._dict_list = tuple(
-                dic_name for dic_name, _ in
-                boggle_utils.DictionaryService.list_dictionaries(dirname)
+                dic_name for dic_name in
+                boggle_utils.DictionaryServiceProvider.discover(dirname)
             )
         return self._dict_list
 
 
 @celery_app.task(base=DictionaryTask)
-def trigger_scoring(session_id, round_no, round_seed):
+def trigger_scoring(session_id, round_no, round_seed, dice_config):
     logger.debug(
         f"Received scoring request for session {session_id}, round {round_no}."
     )
@@ -647,12 +675,8 @@ def trigger_scoring(session_id, round_no, round_seed):
         db.session.commit()
         return
 
-    cols = app.config['BOARD_COLS']
-    rows = app.config['BOARD_ROWS']
-    board = boggle_utils.roll(
-        round_seed, board_dims=(rows, cols),
-        dice_config=app.config['DICE_CONFIG']
-    )
+    dice = dice_configs[dice_config]
+    dims, board = boggle_utils.roll(round_seed, dice_config=dice)
 
     dictionary = None
     if sess.dictionary is not None:

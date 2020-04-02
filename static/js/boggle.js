@@ -152,7 +152,7 @@ export const boggleController = function () {
      */
     function listDictionaries() {
         $('#spawn-session').addClass("is-loading").prop("disabled", true);
-        return boggleAPIGet( '/dictionaries', function({dictionaries}) {
+        return boggleAPIGet( '/options', function({dictionaries}) {
             const selector = $('#dictionary');
             dictionaries.forEach(
                 function (dictionary) {

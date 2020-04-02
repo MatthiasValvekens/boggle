@@ -1,7 +1,6 @@
 import os
 from dataclasses import MISSING
 
-import boggle_utils
 from kombu import Exchange, Queue
 
 
@@ -25,12 +24,9 @@ SQLALCHEMY_DATABASE_URI = get_env_setting(
     'SQLALCHEMY_DATABASE_URI', 'postgresql://boggle@localhost:5432/boggle'
 )
 SQLALCHEMY_TRACK_MODIFICATIONS = False
-BOARD_ROWS = 4
-BOARD_COLS = 4
 ROUND_DURATION_MINUTES = 3
 GRACE_PERIOD_SECONDS = 10
 DEFAULT_COUNTDOWN_SECONDS = 15
-DICE_CONFIG = boggle_utils.DICE_CONFIG
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_BROKER_TRANSPORT_OPTIONS = {
@@ -48,5 +44,7 @@ CELERY_BROKER_URL = get_env_setting(
 CELERY_BROKER_HEARTBEAT = 10
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 DICTIONARY_DIR = 'dictionaries'
+DICE_CONFIG_DIR = 'dice'
+DEFAULT_DICE_CONFIG = get_env_setting('DEFAULT_DICE_CONFIG', 'International')
 API_BASE_URL = get_env_setting('API_BASE_URL', '')
 DISABLE_ASYNC_SCORING = False

@@ -1,3 +1,4 @@
+import math
 import random
 import json
 from dataclasses import dataclass, field
@@ -7,26 +8,35 @@ import logging
 import glob
 import re
 
-
 logger = logging.getLogger(__name__)
 
-DICE_CONFIG = (
-    'ETUKNO', 'EVGTIN', 'DECAMP', 'IELRUW',
-    'EHIFSE', 'RECALS', 'ENTDOS', 'OFXRIA',
-    'NAVEDZ', 'EIOATA', 'GLENYU', 'BMAQJO',
-    'TLIBRA', 'SPULTE', 'AIMSOR', 'ENHRIS'
-)
 
+def roll(seed, *, dice_config, board_dims=None):
+    num_dice = len(dice_config)
+    if board_dims is not None:
+        rows, cols = board_dims
+        if rows * cols != num_dice:
+            raise ValueError(
+                f"Board dimensions {rows, cols} not compatible with "
+                f"number of dice {num_dice}."
+            )
+    else:
+        dice_sq = round(math.sqrt(num_dice))
+        if dice_sq * dice_sq != num_dice:
+            raise ValueError(
+                f"The number of dice {num_dice} is not a perfect square. "
+                "Set board_dims or provide a square dice count"
+            )
+        rows = cols = dice_sq
 
-def roll(seed, board_dims=(4, 4), dice_config=DICE_CONFIG):
     rng = random.Random(seed)
     random_dice = rng.sample(dice_config, len(dice_config))
     flat_board = [
         die[rng.randrange(len(die))] for die in random_dice
     ]
     board_iter = iter(flat_board)
-    rows, cols = board_dims
-    return [[ch for ch in islice(board_iter, cols)] for _ in range(rows)]
+    board = [[ch for ch in islice(board_iter, cols)] for _ in range(rows)]
+    return (rows, cols), board
 
 
 class BoggleWord:
@@ -180,48 +190,151 @@ def score_players(words_by_player, board, dictionary=None):
         w.path_array = json.dumps(path) if path is not None else None
 
 
+class FileServiceProvider:
+    extension = None
+
+    @classmethod
+    def name_services(cls, file_name, file_handle):
+        """
+        Name service(s) in a file in a human-readable way
+        :param file_name:
+            The file name under consideration
+        :param file_handle:
+            An open read handle for the service file.
+        :return:
+            A string, or an iterable of service names (default: the file name)
+        """
+        return file_name
+
+    @classmethod
+    def list_files(cls, directory):
+        return glob.iglob(os.path.join(directory, '*.%s' % cls.extension))
+
+    @classmethod
+    def discover(cls, directory):
+        """
+        List available service files in :param directory: without
+        importing them, but while still testing whether they're actually
+        readable.
+
+        :param directory:
+            The directory to read
+        :return:
+            An iterable with reference names
+        """
+
+        files = cls.list_files(directory)
+        for fname in files:
+            try:
+                with open(fname, 'r') as fhandle:
+                    names = cls.name_services(fname, fhandle)
+                    if isinstance(names, str):
+                        # only a single name
+                        yield names
+                    else:
+                        yield from names
+            except IOError as e:
+                logger.warning(f"Failed to read service file {fname}", e)
+
+    @classmethod
+    def read_services(cls, file_name, file_handle):
+        """
+        Read service(s) in a file
+
+        :param file_name:
+            The file name under consideration
+        :param file_handle:
+            An open read handle for the service file.
+        :return:
+            An iterable of name - service pairs
+            (whatever the service objects are)
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def import_services(cls, directory):
+        files = cls.list_files(directory)
+        for fname in files:
+            logger.info(f"Reading services from {fname}...")
+            try:
+                with open(fname, 'r') as fhandle:
+                    yield from cls.read_services(fname, fhandle)
+            except IOError as e:
+                logger.warning(f"Failed to read service file {fname}", e)
+
+    def __init__(self, directory):
+        self._instances = dict(self.import_services(directory))
+
+    def __getitem__(self, item):
+        return self._instances[item]
+
+    def __contains__(self, item):
+        return item in self._instances
+
+    def __iter__(self):
+        return iter(self._instances)
+
+
 dictionary_regex = re.compile(r'(.*)\.dic')
 
 
-class DictionaryService:
+class DictionaryServiceProvider(FileServiceProvider):
+    extension = 'dic'
 
     @staticmethod
-    def list_dictionaries(dictionary_dir):
-        """
-        List available dictionaries in :param dictionary_dir: without
-        importing them.
+    def dictionary_name(file_name):
+        dictionary_name = dictionary_regex.match(
+            os.path.basename(file_name)
+        ).group(1)
+        return dictionary_name
 
-        :param dictionary_dir:
-            The directory to read
-        :return:
-            A generator yielding base name - file name pairs
-        """
-        files = glob.iglob(os.path.join(dictionary_dir, '*.dic'))
-        for fname in files:
-            dictionary_name = dictionary_regex.match(
-                os.path.basename(fname)
-            ).group(1)
-            yield dictionary_name, fname
+    @classmethod
+    def name_services(cls, file_name, file_handle):
+        return DictionaryServiceProvider.dictionary_name(file_name)
 
-    @staticmethod
-    def read_dictionaries(dictionary_dir):
-        dicts = DictionaryService.list_dictionaries(dictionary_dir)
-        for dictionary_name, fname in dicts:
-            logger.info(f"Importing dictionary {fname}...")
-            with open(fname, 'r') as dict_file:
-                words = {word.rstrip().upper() for word in dict_file}
-                yield dictionary_name, words
+    @classmethod
+    def read_services(cls, file_name, file_handle):
+        words = {word.rstrip().upper() for word in file_handle}
+        yield DictionaryServiceProvider.dictionary_name(file_name), words
 
-    def __init__(self, dictionary_dir):
-        self.__dictionaries = dict(
-            DictionaryService.read_dictionaries(dictionary_dir)
-        )
 
-    def __getitem__(self, item):
-        return self.__dictionaries[item]
+class DiceConfigServiceProvider(FileServiceProvider):
+    extension = 'dice'
 
-    def __contains__(self, item):
-        return item in self.__dictionaries
+    @classmethod
+    def read_services(cls, file_name, file_handle):
+        reading_dice = False
+        name = None
+        dice = []
+        for line in file_handle:
+            line = line.strip()
+            if line:
+                if reading_dice:
+                    dice.extend(line.split(' '))
+                else:
+                    name = line
+                    reading_dice = True
+            else:
+                # empty line, treat as end of entry
+                if dice:
+                    yield name, tuple(dice)
+                reading_dice = False
+                name = None
+                dice = []
 
-    def __iter__(self):
-        return iter(self.__dictionaries)
+        # yield last, if applicable
+        if dice:
+            yield name, tuple(dice)
+
+    @classmethod
+    def name_services(cls, file_name, file_handle):
+        reading_dice = False
+        for line in file_handle:
+            line = line.strip()
+            if line:
+                if not reading_dice:
+                    yield line
+                    reading_dice = True
+            else:
+                # empty line, treat as end of entry
+                reading_dice = False
