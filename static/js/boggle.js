@@ -459,7 +459,7 @@ export const boggleController = function () {
                     </div></div>`;
             } else if(wordScore.in_grid) {
                 return `<div class="control score" ${fmtPathAttr(wordScore)}><div class="tags has-addons" translate="no">
-                        <span class="tag is-danger">${wordScore.word}</span>
+                        <span class="tag ${wordScore.duplicate ? 'is-info' : 'is-danger'}">${wordScore.word}</span>
                     </div></div>`;
             } else {
                 return fmtBad(wordScore.word, "is-dark");
@@ -479,7 +479,7 @@ export const boggleController = function () {
             duplicates = `<div class="score-list-container">
                 <div class="field is-grouped is-grouped-multiline" data-header="Duplicaten">
                     ${Array.from(roundScoreSummary.duplicates).map(
-                (x) => fmtBad(x, "is-danger")).join('')}
+                (x) => fmtBad(x, "is-info")).join('')}
                 </div>
             </div>`;
         }
