@@ -208,11 +208,9 @@ class DictionaryService:
         dicts = DictionaryService.list_dictionaries(dictionary_dir)
         for dictionary_name, fname in dicts:
             logger.info(f"Importing dictionary {fname}...")
-            try:
-                words = {word.rstrip().upper() for word in open(fname, 'r')}
+            with open(fname, 'r') as dict_file:
+                words = {word.rstrip().upper() for word in dict_file}
                 yield dictionary_name, words
-            except IOError as e:
-                logger.warning(f"Failed to read dictionary {fname}", e)
 
     def __init__(self, dictionary_dir):
         self.__dictionaries = dict(
