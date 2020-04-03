@@ -170,12 +170,15 @@ def test_options(client):
     response = request_json(client, 'post', data={}, url=spawn_url)
     sess = boggle.BoggleSession.query.get(response.get_json()['session_id'])
     assert sess.dictionary is None
+    assert sess.dice_config == 'International'
 
     response = request_json(
-        client, 'post', data={'dictionary': 'testing'}, url=spawn_url
+        client, 'post', data={'dictionary': 'testing', 'dice_config': 'Nederlands'},
+        url=spawn_url
     )
     sess = boggle.BoggleSession.query.get(response.get_json()['session_id'])
     assert sess.dictionary == 'testing'
+    assert sess.dice_config == 'Nederlands'
 
     response = request_json(
         client, 'post', data={'dictionary': 'idontexist'}, url=spawn_url

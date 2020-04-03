@@ -195,7 +195,7 @@ export const boggleController = function () {
     function spawnSession(playerName, diceConfig, dictionary=null) {
         _sessionContext = null;
 
-        let data = {diceConfig: diceConfig};
+        let data = {dice_config: diceConfig};
         if(dictionary !== null)
             data.dictionary = dictionary;
         return callBoggleApi(
