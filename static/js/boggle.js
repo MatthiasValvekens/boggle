@@ -299,7 +299,9 @@ export const boggleController = function () {
         }
 
         toggleBusy(true);
-        getStatistics();
+        // don't bother querying stats unless we're in the SCORED phase
+        if(gameState.status === RoundState.SCORED)
+            getStatistics();
         boggleAPIGet(playerContext().playEndpoint, function (response) {
             if (gameState === null) {
                 console.log("Game ended while waiting for server response.");
