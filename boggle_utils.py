@@ -78,22 +78,16 @@ class Letter:
         return '<%s (%d,%d)>' % (str(self), self.i, self.j)
 
 
-def paths(word, board):
-    board_rows = len(board)
-    if board_rows == 0:
-        raise ValueError
-    board_cols = len(board[0])
-    if len(word) < 3 or len(word) > 16:
-        return iter([])
+class Pathfinder:
 
-    initial_points = [
-        Letter(i=i, j=j, label=ch)
-        for i, row in enumerate(board)
-        for j, ch in enumerate(row)
-        if ch == word[0]
-    ]
+    def __init__(self, board):
+        self.board = board
+        self.board_rows = len(board)
+        if self.board_rows == 0:
+            raise ValueError
+        self.board_cols = len(board[0])
 
-    def branch(letter: Letter, next_ch: str):
+    def branch(self, letter: Letter, next_ch: str):
         moves = [
             (letter.i + dy, letter.j + dx)
             for dx in range(-1, 2)
@@ -103,8 +97,8 @@ def paths(word, board):
 
         for m in moves:
             i, j = m
-            if 0 <= i < board_rows and 0 <= j < board_cols and \
-                    m not in letter.seen and board[i][j] == next_ch:
+            if 0 <= i < self.board_rows and 0 <= j < self.board_cols and \
+                    m not in letter.seen and self.board[i][j] == next_ch:
                 node = Letter(
                     i=i, j=j, label=next_ch,
                     seen={(letter.i, letter.j), *letter.seen},
@@ -112,30 +106,45 @@ def paths(word, board):
                 )
                 yield node
 
-    def recurse(letters, chars):
-        if not chars:
-            # we're done, check if the word has been found
-            for cand in letters:
-                if word == str(cand):
-                    yield [
-                        *((lett.i, lett.j) for lett in cand.path),
-                        (cand.i, cand.j)
-                    ]
-            return
+    def __call__(self, word, initial_state=None):
+        if len(word) < 3 or len(word) > 16:
+            return iter([])
 
-        # singly linked lists would be ideal here, but we're talking about
-        #  really short strings, so meh
-        # Note that passing iterators is not an option, since we need
-        #  to branch in parallel without shared state
-        car, cdr = chars[0], chars[1:]
-        for letter in letters:
-            yield from recurse(branch(letter, car), cdr)
+        if initial_state is None:
+            initial_points = [
+                Letter(i=i, j=j, label=ch)
+                for i, row in enumerate(self.board)
+                for j, ch in enumerate(row)
+                if ch == word[0]
+            ]
+            start_at = 1
+        else:
+            initial_points, start_at = initial_state
 
-    return recurse(initial_points, word[1:])
+        def recurse(letters, chars):
+            if not chars:
+                # we're done, check if the word has been found
+                for cand in letters:
+                    if word == str(cand):
+                        yield [
+                            *((lett.i, lett.j) for lett in cand.path),
+                            (cand.i, cand.j)
+                        ]
+                return
+
+            # singly linked lists would be ideal here, but we're talking about
+            #  really short strings, so meh
+            # Note that passing iterators is not an option, since we need
+            #  to branch in parallel without shared state
+            car, cdr = chars[0], chars[1:]
+            for letter in letters:
+                yield from recurse(self.branch(letter, car), cdr)
+
+        return recurse(initial_points, word[start_at:])
 
 
-def score_word(word, board):
-    w_paths = paths(word.replace('QU', 'Q'), board)
+def score_word(word, solver):
+    w_paths = solver(word.replace('QU', 'Q'))
     # matters for scoring
     orig_len = len(word)
     try:
@@ -183,10 +192,12 @@ def score_players(words_by_player, board, dictionary=None):
 
     no_dict = dictionary is None
 
+    solver = Pathfinder(board)
+
     for w in chain(*words_by_player):
         wrapped = BoggleWord(w.word)
         cleaned = str(wrapped)
-        score, path = score_word(cleaned, board)
+        score, path = score_word(cleaned, solver)
         blacklisted = wrapped in blacklist
         # non-dictionary words do get a nonzero score, since they
         #  may be manually approved.

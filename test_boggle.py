@@ -44,24 +44,39 @@ DICE_CONFIG_DEFAULT = 'International'
 DIMS, DEFAULT_TESTING_BOARD = boggle_utils.roll(5, dice_config=INTL_DICE_CONFIG)
 
 
-def tuple_paths(word, board):
-    return set(map(tuple, boggle_utils.paths(word, board)))
+def tuple_paths(word, solver, initial_state=None):
+    return set(map(tuple, solver(word, initial_state=initial_state)))
 
 
 def test_board_path():
-    paths = tuple_paths('ALGE', DEFAULT_TESTING_BOARD)
+    solver = boggle_utils.Pathfinder(DEFAULT_TESTING_BOARD)
+    paths = tuple_paths('ALGE', solver)
     alg_path = [(0, 0), (1, 1), (2, 2)]
     assert paths == {(*alg_path, (3, 3)), (*alg_path, (1, 2))}, paths
-    paths = tuple_paths('ALGEI', DEFAULT_TESTING_BOARD)
+    paths = tuple_paths('ALGEI', solver)
     assert len(paths) == 3, paths
-    paths = tuple_paths('ALGEIG', DEFAULT_TESTING_BOARD)
+    paths = tuple_paths('ALGEIG', solver)
     assert len(paths) == 0
-    paths = tuple_paths('DGIEIHLFLO', DEFAULT_TESTING_BOARD)
+    paths = tuple_paths('DGIEIHLFLO', solver)
     assert len(paths) == 1
-    paths = tuple_paths('B', DEFAULT_TESTING_BOARD)
+    paths = tuple_paths('B', solver)
     assert len(paths) == 0
-    paths = tuple_paths('BLHIE', DEFAULT_TESTING_BOARD)
+    paths = tuple_paths('BLHIE', solver)
     assert len(paths) == 0
+
+    # test a couple of "warm start" scenarios
+    paths = tuple_paths('EIG', solver)
+    assert len(paths) == 3
+
+    prefix0 = boggle_utils.Letter(i=3, j=3, label='E')
+    paths = tuple_paths('EIG', solver, initial_state=([prefix0], 1))
+    assert len(paths) == 2
+
+    prefix1 = boggle_utils.Letter(
+        i=3, j=2, label='I', seen={(prefix0.i, prefix0.j)}, path=[prefix0]
+    )
+    paths = tuple_paths('EIG', solver, initial_state=([prefix1], 2))
+    assert len(paths) == 1
 
 
 def test_read_dice():
@@ -485,6 +500,7 @@ def do_submit(client, play_url, round_no, words, expected_status):
     resp_json = resp.get_json()
     assert resp_json['status'] == expected_status
     return resp_json
+
 
 @pytest.mark.parametrize('sql_scoring', [True, False])
 def test_two_player_scenario(client, sql_scoring):
