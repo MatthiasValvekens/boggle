@@ -380,6 +380,7 @@ def test_single_player_scenario(client, sql_scoring):
     assert not word3['duplicate']
     assert word3['dictionary_valid']
     assert word3['score'] == 11 * 2  # double score bonus
+    assert word3['longest_bonus']
 
     assert word1['word'] == 'ALGEIG'
     assert word1['path'] is None
@@ -502,4 +503,5 @@ def test_two_player_scenario(client, sql_scoring):
     assert not p1w3['duplicate'] and not p2w3['duplicate']
     assert p1w3['score'] == 5
     assert p2w3['score'] == 11 * 2
+    assert p2w3['longest_bonus']
     assert p1w3['path'] and p2w3['path']
