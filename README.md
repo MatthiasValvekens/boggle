@@ -1,4 +1,4 @@
-A simple REST-based Boggle server implemented using Flask, with a single-page web frontend built with Bulma.
+A simple JSON-based Boggle server implemented using Flask, with a single-page web frontend built with Bulma.
 This is a work in progress.
 
 Configuration is in config.py. Requires PostgreSQL and (optionally) a Celery-compatible message broker such as RabbitMQ or `redis`.
