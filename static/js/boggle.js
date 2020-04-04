@@ -10,7 +10,8 @@ import * as boggleModel from './boggle-model.js';
 export const BOGGLE_CONFIG = {
     apiBaseURL: "",
     heartbeatTimeout: 3000,
-    emptyTimerString: '-:--'
+    emptyTimerString: '-:--',
+    statisticsEnabled: true
 };
 
 
@@ -273,6 +274,20 @@ export const boggleController = function () {
         gameState.markSubmitted();
     }
 
+    function getStatistics() {
+        return boggleAPIGet(sessionContext().statisticsEndpoint, function({total_scores}){
+            const playerListUl = $('#player-list ul');
+            total_scores.forEach(function({player: {player_id}, total_score}) {
+                    if(total_score > 0) {
+                        const scoreSpan = playerListUl.find(
+                            `li[data-player-id=${player_id}] .player-total-score`
+                        );
+                        scoreSpan.text(`(${total_score})`);
+                    }
+                }
+            );
+        });
+    }
 
     function heartbeat() {
         if (gameState === null)
@@ -284,21 +299,29 @@ export const boggleController = function () {
         }
 
         toggleBusy(true);
+        getStatistics();
         boggleAPIGet(playerContext().playEndpoint, function (response) {
             if (gameState === null) {
                 console.log("Game ended while waiting for server response.");
                 return;
             }
-            let gameStateAdvanced = gameState.updateState(response);
+            let gameStateUpdate = gameState.updateState(response);
             let status = gameState.status;
 
             // update the player list
             let currentPlayer = playerContext().playerId;
-            let playerListFmtd = gameState.playerList.map(
+            const playerListUl = $('#player-list ul');
+            gameStateUpdate.playersLeaving.forEach(function({playerId}) {
+                    playerListUl.find(`li[data-player-id="${playerId}"]`).remove();
+                }
+            );
+            let playerListFmtd = gameStateUpdate.playersJoining.map(
                 ({playerId, name}) =>
-                    `<li data-player-id="${playerId}" ${playerId === currentPlayer ? 'class="me"' : ''}>${name}</li>`
+                    `<li data-player-id="${playerId}" ${playerId === currentPlayer ? 'class="me"' : ''}>
+                    ${name} <span class="player-total-score"></span>
+                    </li>`
             ).join('');
-            $('#player-list ul').html(playerListFmtd);
+            playerListUl.append(playerListFmtd);
 
 
             // update the timer control, if necessary
@@ -313,7 +336,7 @@ export const boggleController = function () {
                 case RoundState.PLAYING:
                     // count down to end of round, and submit scores when timer reaches zero
                     timerGoalValue = gameState.roundEnd;
-                    if(noTimerRunning || gameStateAdvanced)
+                    if(noTimerRunning || gameStateUpdate.gameStateAdvanced)
                         timerControl(submitWords);
                     break;
                 case RoundState.SCORING:
@@ -345,13 +368,13 @@ export const boggleController = function () {
 
             // update availability of submission textarea
             $('#words-container').toggle(status === RoundState.PLAYING);
-            if(gameStateAdvanced) {
+            if(gameStateUpdate.gameStateAdvanced) {
                 $('#words').val('');
                 touchInputController.clearInput();
             }
 
             // update board etc.
-            if (gameStateAdvanced) {
+            if (gameStateUpdate.gameStateAdvanced) {
                 let boggleGrid = $('#boggle');
                 if(status !== RoundState.INITIAL && status !== RoundState.PRE_START) {
                     let boardHTML = gameState.boardState.map(
@@ -366,7 +389,7 @@ export const boggleController = function () {
             // update scores
             // FIXME do this more cleverly, without redrawing the entire thing every couple seconds
             //  THat would also remove the need for the manager-specific hack
-            if(status === RoundState.SCORED && (!manager || gameStateAdvanced)) {
+            if(status === RoundState.SCORED && (!manager || gameStateUpdate.gameStateAdvanced)) {
                 formatScores(gameState.scores);
                 $('#score-section').show();
             }

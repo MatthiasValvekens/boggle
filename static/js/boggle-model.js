@@ -37,6 +37,10 @@ export class SessionContext {
         return `${this.endpointBase}/manage/${this.mgmtToken}`;
     }
 
+    get statisticsEndpoint() {
+        return `${this.endpointBase}/stats/${this.invToken}`;
+    }
+
 }
 
 export class PlayerContext {
@@ -107,6 +111,13 @@ export class PlayerContext {
  * @property {PlayerScore[]} [scores] - Scores for the current round
  */
 
+/**
+ * @typedef {Object} GameStateUpdate
+ * @property {boolean} gameStateAdvanced
+ * @property {Player[]} playersJoining
+ * @property {Player[]} playersLeaving
+ */
+
 export class GameState {
     /**
      * @param {PlayerContext} playerContext
@@ -122,18 +133,27 @@ export class GameState {
         this._boardState = null;
         this._scores = null;
         /** @type {Player[]} */
-        this._playerList = [{name: playerContext.name, playerId: playerContext.playerId}];
+        this._playerList = [];
     }
 
     /**
      * Update the game state with a response from the server.
      * @param {ServerGameState} serverUpdate
+     * @return {GameStateUpdate}
      */
     updateState(serverUpdate) {
         let { status, round_no: roundNo } = serverUpdate;
-        this._playerList = serverUpdate.players.map(
+        // we need to track changes to the player list to avoid clobbering the statistics view
+        //  at inopportune times
+        const newPlayerList = serverUpdate.players.map(
             ({name, player_id}) => ({name: name, playerId: player_id})
         );
+        const newIdSet = new Set(newPlayerList.map(({playerId}) => playerId));
+        const oldIdSet = new Set(this._playerList.map(({playerId}) => playerId));
+        const joining = newPlayerList.filter(({playerId}) => !oldIdSet.has(playerId));
+        const leaving = this._playerList.filter(({playerId}) => !newIdSet.has(playerId));
+        this._playerList = newPlayerList;
+
         let gameStateAdvanced = this._status !== status;
         if(this._roundNo !== roundNo) {
             this._roundSubmitted = false;
@@ -155,7 +175,7 @@ export class GameState {
                 break;
         }
         this._status = status;
-        return gameStateAdvanced;
+        return {gameStateAdvanced: gameStateAdvanced, playersLeaving: leaving, playersJoining: joining};
     }
 
     /**
