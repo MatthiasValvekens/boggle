@@ -474,6 +474,18 @@ def test_double_submission(client):
     attempt_submit([], response.get_json()['round_no'])
 
 
+def do_submit(client, play_url, round_no, words, expected_status):
+    resp = request_json(
+        client, 'put', play_url, data={'round_no': round_no, 'words': words}
+    )
+    assert resp.status_code == 201
+
+    resp = client.get(play_url)
+    assert resp.status_code == 200
+    resp_json = resp.get_json()
+    assert resp_json['status'] == expected_status
+    return resp_json
+
 @pytest.mark.parametrize('sql_scoring', [True, False])
 def test_two_player_scenario(client, sql_scoring):
     boggle.app.config['EFFECTIVE_SCORE_SQL'] = sql_scoring
@@ -490,20 +502,12 @@ def test_two_player_scenario(client, sql_scoring):
     round_no = response.get_json()['round_no']
     assert round_no == 1
 
-    def do_submit(play_url, words, expected_status):
-        resp = request_json(
-            client, 'put', play_url, data={'round_no': round_no, 'words': words}
-        )
-        assert resp.status_code == 201
-
-        resp = client.get(play_url)
-        assert resp.status_code == 200
-        resp_json = resp.get_json()
-        assert resp_json['status'] == expected_status
-        return resp_json
-
-    do_submit(gc1.play_url, player1_words, boggle.Status.PLAYING)
-    rdata = do_submit(gc2.play_url, player2_words, boggle.Status.SCORED)
+    do_submit(
+        client, gc1.play_url, round_no, player1_words, boggle.Status.PLAYING
+    )
+    rdata = do_submit(
+        client, gc2.play_url, round_no, player2_words, boggle.Status.SCORED
+    )
     score_data1, score_data2 = sorted(
         rdata['scores'], key=lambda sd: sd['player']['player_id']
     )
@@ -540,3 +544,33 @@ def test_two_player_scenario(client, sql_scoring):
         assert total_data2['total_score'] == 22
     else:
         assert response.status_code == 501
+
+
+# This is a delicate corner case in the effective_scores view
+def test_all_inputs_invalid(client):
+    boggle.app.config['EFFECTIVE_SCORE_SQL'] = True
+    sess = create_session(client)
+    gc1 = create_player_in_session(client, sess, name='tester1')
+    gc2 = create_player_in_session(client, sess, name='tester2')
+
+    player1_words = ['AAAAAAAA', 'BALSKDJA', 'ALGEIG']
+    player2_words = ['ALGEIG', 'QOWIEU']
+
+    # start the session
+    client.post(sess.manage_url)
+    do_submit(
+        client, gc1.play_url, 1, player1_words, boggle.Status.PLAYING
+    )
+    rdata = do_submit(
+        client, gc2.play_url, 1, player2_words, boggle.Status.SCORED
+    )
+
+    score_data1, score_data2 = sorted(
+        rdata['scores'], key=lambda sd: sd['player']['player_id']
+    )
+    assert len(score_data1['words']) == 3
+    assert len(score_data2['words']) == 2
+    for w in score_data1['words']:
+        assert w['score'] == 0
+    for w in score_data2['words']:
+        assert w['score'] == 0

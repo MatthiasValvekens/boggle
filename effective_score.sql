@@ -2,17 +2,22 @@
 -- The rows where submission_id is null are the per round maxima
 create or replace view max_valid_lengths as
     select 
-        coalesce(max(length(word.word)), 0) as max_word_len, 
+        coalesce(max(word_len), 0) as max_word_len,
         session_id, -- player table
         round_no, -- submission table
         -- we could also use grouping(...) but it's nice to
-        --  export submission_id anyway
-        submission_id
-    from word
-    join submission on submission.id = word.submission_id
-    join player on player.id = submission.player_id
-    where (dictionary_valid and not duplicate and path_array is not null)
-    group by grouping sets ((session_id, round_no, submission_id), (session_id, round_no));
+        --  export the submission id anyway
+        -- note that writing submission_id directly here is NOT an option, since it may be
+        -- NULL if the submission does not have any valid words
+        submission.id as submission_id
+    from player
+    join submission on player.id = submission.player_id
+    left join (
+        select length(word) as word_len, submission_id
+        from word
+        where (dictionary_valid and not duplicate and path_array is not null)
+    ) as word_lens on submission.id = submission_id
+    group by grouping sets ((session_id, round_no, submission.id), (session_id, round_no));
 
 create or replace view effective_scores as
     select
