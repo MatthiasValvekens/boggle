@@ -195,7 +195,6 @@ def score_players(words_by_player, board, dictionary=None):
         # path may still be valid, of course
         w.duplicate = blacklisted
         w.dictionary_valid = no_dict or cleaned in dictionary
-        print(cleaned, no_dict, w.dictionary_valid)
         w.path_array = json.dumps(path) if path is not None else None
 
 
