@@ -82,7 +82,7 @@ def json_err_handler(error_code):
     return lambda e: (jsonify(error=str(e)), error_code)
 
 
-for err in (400, 403, 404, 409, 410):
+for err in (400, 403, 404, 409, 410, 501):
     app.register_error_handler(err, json_err_handler(err))
 
 
@@ -235,6 +235,20 @@ class WordWithEffectiveScore(AbstractWord):
         return result
 
 
+# wrapper around the statistics view
+class Statistics(db.Model):
+    __tablename__ = 'statistics'
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(
+        db.Integer, db.ForeignKey('player.id'),
+        nullable=False
+    )
+    player = db.relationship(Player, backref=db.backref('statistics'))
+    round_no = db.Column(db.Integer, nullable=True)
+    total_score = db.Column(db.Integer, nullable=False)
+
+
 def gen_salted_token(salt, *args):
     hmac_key = hashlib.sha1(salt + server_key).digest()
     token_data = ''.join(str(d) for d in args)
@@ -271,7 +285,8 @@ def index():
 def list_options():
     return {
         'dictionaries': trigger_scoring.dicts_available,
-        'dice_configs': list(dice_configs)
+        'dice_configs': list(dice_configs),
+        'statistics': app.config['EFFECTIVE_SCORE_SQL']
     }
 
 
@@ -342,6 +357,10 @@ def check_mgmt_token(session_id, pepper, mgmt_token):
     if mgmt_token != true_token:
         abort(403, description="Bad session management token")
 
+def check_inv_token(session_id, pepper, inv_token):
+    true_token = gen_session_inv_token(session_id, pepper)
+    if inv_token != true_token:
+        abort(403, description="Bad session token")
 
 @app.route(mgmt_url, methods=['GET', 'POST', 'DELETE'])
 def manage_session(session_id, pepper, mgmt_token):
@@ -385,9 +404,7 @@ def manage_session(session_id, pepper, mgmt_token):
 
 @app.route(session_url_base + '/join/<inv_token>', methods=['POST'])
 def session_join(session_id, pepper, inv_token):
-    true_token = gen_session_inv_token(session_id, pepper)
-    if inv_token != true_token:
-        abort(403, description="Bad session token")
+    check_inv_token(session_id, pepper, inv_token)
 
     sess = BoggleSession.query.get(session_id)
     submission_json = request.get_json()
@@ -560,6 +577,29 @@ def play(session_id, pepper, player_id, player_token):
         return abort(409, description="You can only submit once")
 
     return jsonify({}), 201
+
+
+@app.route(session_url_base + '/stats/<inv_token>')
+def stats(session_id, pepper, inv_token):
+    check_inv_token(session_id, pepper, inv_token)
+
+    if not app.config['EFFECTIVE_SCORE_SQL']:
+        return abort(501, "Statistics aggregation is not available")
+
+    def query():
+        # only fetch the player-global totals
+        stats_query = Player.query.join(Statistics).filter(
+            Player.session_id == session_id, Statistics.round_no.is_(None)
+        ).add_columns(Statistics.total_score)
+        for player, total_score in stats_query.all():
+            yield {
+                'player': {'player_id': player.id, 'name': player.name},
+                'total_score': total_score
+            }
+
+    return {
+        'total_scores': list(query())
+    }
 
 
 @app.route(mgmt_url + '/approve_word', methods=['PUT'])

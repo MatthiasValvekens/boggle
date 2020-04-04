@@ -83,8 +83,8 @@ def test_read_dice():
 
 SessionData = namedtuple(
     'SessionData',
-    ['session_id', 'pepper', 'mgmt_token',
-     'session_token', 'manage_url', 'join_url', 'approve_url']
+    ['session_id', 'pepper', 'mgmt_token', 'session_token',
+     'manage_url', 'join_url', 'approve_url', 'stats_url']
 )
 
 GameContext = namedtuple(
@@ -132,10 +132,14 @@ def create_session(client, dictionary=None, dice_config=None) -> SessionData:
             'approve_word', session_id=session_id, pepper=pepper,
             mgmt_token=mgmt_token
         )
+        stats_url = flask.url_for(
+            'stats', session_id=session_id, pepper=pepper,
+            inv_token=session_token
+        )
     return SessionData(
         session_id=session_id, pepper=pepper, session_token=session_token,
         mgmt_token=mgmt_token, manage_url=manage_url, join_url=join_url,
-        approve_url=approve_url
+        approve_url=approve_url, stats_url=stats_url
     )
 
 
@@ -307,6 +311,7 @@ def test_wrong_player_token(client):
     )
     assert response.status_code == 403, response.get_json()
 
+# TODO: test statistics over multiple rounds
 
 @pytest.mark.parametrize('sql_scoring', [True, False])
 def test_single_player_scenario(client, sql_scoring):
@@ -403,6 +408,7 @@ def test_single_player_scenario(client, sql_scoring):
     #  that there are many dictionary words that are valid both with and
     #  without Q
     assert word4['word'] in ('QLGE', 'QULGE')
+    assert word4['score'] in (1, 2)
 
     assert word5['word'] == 'TLEGI'
     assert word5['path'] is not None
@@ -410,13 +416,31 @@ def test_single_player_scenario(client, sql_scoring):
     assert not word5['dictionary_valid']
     assert word5['score'] == 0
 
+    response = client.get(gc.session.stats_url)
+    if sql_scoring:
+        rdata = response.get_json()
+        # account for the undefined value of QLGE/QULGE here
+        #  TODO that's a good case for making this thing deterministic
+        assert rdata['total_scores'][0]['total_score'] in (26, 27)
+    else:
+        assert response.status_code == 501
+
     response = request_json(
         client, 'put', gc.session.approve_url, data={'words': ['TleGi']}
     )
     rdata = response.get_json()
     assert response.status_code == 200, rdata
     # check validity flag
-    assert rdata['scores'][0]['words'][4]['dictionary_valid']
+    word5 = rdata['scores'][0]['words'][4]
+    assert word5['dictionary_valid']
+    assert word5['score'] == 2
+
+    response = client.get(gc.session.stats_url)
+    if sql_scoring:
+        rdata = response.get_json()
+        assert rdata['total_scores'][0]['total_score'] in (28, 29)
+    else:
+        assert response.status_code == 501
 
 
 def test_double_submission(client):
@@ -505,3 +529,14 @@ def test_two_player_scenario(client, sql_scoring):
     assert p2w3['score'] == 11 * 2
     assert p2w3['longest_bonus']
     assert p1w3['path'] and p2w3['path']
+
+    response = client.get(sess.stats_url)
+    if sql_scoring:
+        rdata = response.get_json()
+        total_data1, total_data2 = sorted(
+            rdata['total_scores'], key=lambda sd: sd['player']['player_id']
+        )
+        assert total_data1['total_score'] == 5
+        assert total_data2['total_score'] == 22
+    else:
+        assert response.status_code == 501
