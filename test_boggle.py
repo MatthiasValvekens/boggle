@@ -24,7 +24,6 @@ def client():
 
     with boggle.app.test_client() as client:
         with boggle.app.app_context():
-            boggle.db.drop_all()
             boggle.init_db()
         yield client
 

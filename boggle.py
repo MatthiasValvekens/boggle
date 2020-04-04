@@ -13,6 +13,7 @@ import celery
 
 from flask import Flask, abort, request, jsonify, render_template
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import validates
 from sqlalchemy import UniqueConstraint, select, update
 from flask_sqlalchemy import SQLAlchemy
@@ -45,11 +46,26 @@ def init_db():
     Set up the database schema and/or truncate all sessions.
     """
     # create tables as necessary
-    db.create_all()
-    con = db.engine
-    with con.begin():
-        # truncate all sessions on every restart
-        con.execute('TRUNCATE boggle_session RESTART IDENTITY CASCADE;')
+    #  we don't use create_all because the effective score wrapper
+    #  should never be created by SQLAlchemy
+    bind = db.session.bind
+    for Model in (BoggleSession, Player, Submission, Word):
+        Model.__table__.create(bind, checkfirst=True)
+
+    with db.engine.connect() as con:
+        with con.begin():
+            # truncate all sessions on every restart
+            con.execute('TRUNCATE boggle_session RESTART IDENTITY CASCADE;')
+
+            # if necessary, set up the views for computing effective scores
+            #  in the DB
+            if app.config['EFFECTIVE_SCORE_SQL']:
+                logger.debug('Loading effective score views...')
+                with open('effective_score.sql', 'r') as sql_file:
+                    sql = sql_file.read()
+                con.execute(sql)
+            else:
+                logger.debug('Skipping effective scoring views...')
 
 
 # adding before_first_request to init_db would cause this to be run
@@ -151,20 +167,18 @@ class Submission(db.Model):
     round_no = db.Column(db.Integer, nullable=False)
 
 
-class Word(db.Model):
-    __tablename__ = 'word'
-    __table_args__ = (
-        UniqueConstraint('submission_id', 'word'),
-    )
+class AbstractWord(db.Model):
+    __abstract__ = True
 
     id = db.Column(db.Integer, primary_key=True)
-    submission_id = db.Column(
-        db.Integer, db.ForeignKey('submission.id', ondelete="cascade"),
-        nullable=False
-    )
-    submission = db.relationship(
-        Submission, backref=db.backref('words')
-    ) 
+
+    @declared_attr
+    def submission_id(self):
+        return db.Column(
+            db.Integer, db.ForeignKey('submission.id', ondelete="cascade"),
+            nullable=False
+        )
+
     word = db.Column(db.String(20), nullable=False)
 
     score = db.Column(db.Integer, nullable=True)
@@ -193,6 +207,32 @@ class Word(db.Model):
     @validates('word')
     def to_uppercase(self, key, value):
         return value.upper()
+
+
+class Word(AbstractWord):
+    __tablename__ = 'word'
+    __table_args__ = (
+        UniqueConstraint('submission_id', 'word'),
+    )
+
+    submission = db.relationship(
+        Submission, backref=db.backref('words')
+    )
+
+
+# wrapper around the effective_scores view
+class WordWithEffectiveScore(AbstractWord):
+    __tablename__ = 'effective_scores'
+
+    # no-backref version
+    submission = db.relationship(Submission)
+
+    longest_bonus = db.Column(db.Boolean, nullable=False)
+
+    def score_json(self):
+        result = super().score_json()
+        result['longest_bonus'] = self.longest_bonus
+        return result
 
 
 def gen_salted_token(salt, *args):
@@ -445,9 +485,7 @@ def session_state(session_id, pepper):
 
     if sess.round_scored:
         # if scores have been computed by now, return them
-        scores = format_scores(
-            retrieve_submitted_words(session_id, round_no)
-        )
+        scores = emit_scores(sess)
         response['status'] = Status.SCORED
         response['scores'] = list(scores)
         return response
@@ -557,12 +595,29 @@ def approve_word(session_id, pepper, mgmt_token):
     db.session.execute(update_q)
     db.session.commit()
 
-    scores = format_scores(
-        retrieve_submitted_words(session_id, round_no=sess.round_no)
-    )
+    scores = emit_scores(sess)
     return {
         'scores': list(scores)
     }
+
+
+def emit_scores(sess: BoggleSession):
+    scored_sql = app.config['EFFECTIVE_SCORE_SQL']
+    by_player = retrieve_submitted_words(
+        sess.id, round_no=sess.round_no, scored_sql=scored_sql
+    )
+    if scored_sql:
+        def emitter():
+            for (pl_id, pl_name), words in by_player.items():
+                yield {
+                    'player': {'player_id': pl_id, 'name': pl_name},
+                    'words': sorted(
+                        (w.score_json() for w in words), key=lambda w: w['word']
+                    )
+                }
+        return emitter()
+    else:
+        return format_scores(by_player)
 
 
 def format_scores(by_player):
@@ -601,10 +656,10 @@ def format_scores(by_player):
         } 
 
 
-def retrieve_submitted_words(session_id, round_no):
+def retrieve_submitted_words(session_id, round_no, scored_sql=False):
+    model = WordWithEffectiveScore if scored_sql else Word
 
-    word_query = Word.query \
-        .join(Word.submission) \
+    word_query = model.query.join(model.submission) \
         .join(Submission.player) \
         .filter(Player.session_id == session_id) \
         .filter(Submission.round_no == round_no) \
