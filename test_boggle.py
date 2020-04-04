@@ -93,7 +93,7 @@ GameContext = namedtuple(
 
 
 def request_json(client, method, url, *args, data, headers=None, **kwargs):
-    if method not in ('get', 'post', 'put', 'delete'):
+    if method not in ('get', 'post', 'put', 'delete', 'patch'):
         raise ValueError("That's probably not what you meant")
 
     req_headers = {'content-type': 'application/json'}
@@ -426,7 +426,7 @@ def test_single_player_scenario(client, sql_scoring):
         assert response.status_code == 501
 
     response = request_json(
-        client, 'put', gc.session.approve_url, data={'words': ['TleGi']}
+        client, 'patch', gc.session.approve_url, data={'words': ['TleGi']}
     )
     rdata = response.get_json()
     assert response.status_code == 200, rdata

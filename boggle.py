@@ -602,7 +602,7 @@ def stats(session_id, pepper, inv_token):
     }
 
 
-@app.route(mgmt_url + '/approve_word', methods=['PUT'])
+@app.route(mgmt_url + '/approve_word', methods=['PATCH'])
 def approve_word(session_id, pepper, mgmt_token):
     check_mgmt_token(session_id, pepper, mgmt_token)
 

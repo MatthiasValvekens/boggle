@@ -410,7 +410,7 @@ export const boggleController = function () {
             words: $('#dict-invalid .score .approved').toArray().map((el) => el.innerText)
         };
         let endpoint = sessionContext().mgmtEndpoint + '/approve_word';
-        return callBoggleApi('put', endpoint, requestData, function({scores}) {
+        return callBoggleApi('patch', endpoint, requestData, function({scores}) {
             gameState.updateScores(scores);
             formatScores(gameState.scores);
         });
