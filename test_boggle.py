@@ -308,9 +308,10 @@ def test_wrong_player_token(client):
     assert response.status_code == 403, response.get_json()
 
 
-def test_single_player_scenario(client):
+@pytest.mark.parametrize('sql_scoring', [True, False])
+def test_single_player_scenario(client, sql_scoring):
+    boggle.app.config['EFFECTIVE_SCORE_SQL'] = sql_scoring
     gc = create_player_in_session(client, dictionary='testing')
-
     # start the session
     response = client.post(gc.session.manage_url)
     assert response.status_code == 200
@@ -448,7 +449,9 @@ def test_double_submission(client):
     attempt_submit([], response.get_json()['round_no'])
 
 
-def test_two_player_scenario(client):
+@pytest.mark.parametrize('sql_scoring', [True, False])
+def test_two_player_scenario(client, sql_scoring):
+    boggle.app.config['EFFECTIVE_SCORE_SQL'] = sql_scoring
     sess = create_session(client)
     gc1 = create_player_in_session(client, sess, name='tester1')
     gc2 = create_player_in_session(client, sess, name='tester2')
