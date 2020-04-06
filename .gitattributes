@@ -1,0 +1,3 @@
+static/js/moment.js linguist-vendored
+static/webfonts/* linguist-vendored
+*.sql linguist-language=SQL
