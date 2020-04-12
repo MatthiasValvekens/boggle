@@ -222,6 +222,7 @@ export const boggleController = function () {
     }
 
     let heartbeatTimer = null;
+    let timeoutJob = null;
     /** @type {GameState} */
     let gameState = null;
     /** @type {?int} */
@@ -229,8 +230,10 @@ export const boggleController = function () {
 
     function timerControl(goalCallback=null) {
         let timerElement = document.getElementById('timer');
-        if(timerGoalValue === null)
+        if(timerGoalValue === null) {
             timerElement.innerText = BOGGLE_CONFIG.emptyTimerString;
+            timeoutJob = null;
+        }
         // add a fudge factor of half a second to mitigate timing issues with the server
         let delta = timerGoalValue + 500 - (new Date().getTime());
         if(delta <= 0) {
@@ -238,13 +241,14 @@ export const boggleController = function () {
                 goalCallback();
             timerElement.innerText = BOGGLE_CONFIG.emptyTimerString;
             timerGoalValue = null;
+            timeoutJob = null;
             // no need to reschedule the timer
             return;
         }
         let minutes = Math.floor(delta / (1000 * 60));
         let seconds = Math.floor((delta - minutes * 1000 * 60) / 1000);
         timerElement.innerText = `${minutes}:${seconds < 10? '0' : ''}${seconds}`;
-        setTimeout(() => timerControl(goalCallback), 1000);
+        timeoutJob = setTimeout(() => timerControl(goalCallback), 1000);
     }
 
     function advanceRound() {
@@ -259,6 +263,8 @@ export const boggleController = function () {
 
         // reset timer
         timerGoalValue = null;
+        if(timeoutJob !== null)
+            clearTimeout(timeoutJob);
 
         let requestData = {'until_start': parseInt($('#round-announce-countdown').val())};
         return callBoggleApi('POST', sessionContext().mgmtEndpoint, requestData, function () {
@@ -331,19 +337,25 @@ export const boggleController = function () {
 
 
             // update the timer control, if necessary
-            let noTimerRunning = timerGoalValue === null;
+            let noTimerRunning = timeoutJob === null;
             switch(status) {
                 case RoundState.PRE_START:
                     // count down to start of round + fudge factor
                     timerGoalValue = gameState.roundStart;
-                    if(noTimerRunning)
+                    if(noTimerRunning || gameStateUpdate.gameStateAdvanced) {
+                        if(!noTimerRunning)
+                            clearTimeout(timeoutJob);
                         timerControl(forceRefresh);
+                    }
                     break;
                 case RoundState.PLAYING:
                     // count down to end of round, and submit scores when timer reaches zero
                     timerGoalValue = gameState.roundEnd;
-                    if(noTimerRunning || gameStateUpdate.gameStateAdvanced)
+                    if(noTimerRunning || gameStateUpdate.gameStateAdvanced) {
+                        if(!noTimerRunning)
+                            clearTimeout(timeoutJob);
                         timerControl(submitWords);
+                    }
                     break;
                 case RoundState.SCORING:
                     // if we somehow end up killing the round-end timer, make sure we still submit
