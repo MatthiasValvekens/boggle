@@ -257,10 +257,14 @@ export const boggleController = function () {
         // clean up path hover listeners
         $('.player-scores').off();
 
+        // reset timer
+        timerGoalValue = null;
+
         let requestData = {'until_start': parseInt($('#round-announce-countdown').val())};
         return callBoggleApi('POST', sessionContext().mgmtEndpoint, requestData, function () {
+            // disable until next heartbeat update
             $('#advance-round').prop("disabled", true);
-        })
+        });
     }
 
     function submitWords() {
@@ -398,7 +402,7 @@ export const boggleController = function () {
 
             // update admin interface
             if(manager) {
-                let canAdvance = status === RoundState.INITIAL || status === RoundState.SCORED;
+                let canAdvance = (status !== RoundState.SCORING) && (status !== RoundState.PRE_START);
                 $('#advance-round').prop("disabled", !canAdvance);
             }
 
