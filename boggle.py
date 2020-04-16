@@ -357,10 +357,12 @@ def check_mgmt_token(session_id, pepper, mgmt_token):
     if mgmt_token != true_token:
         abort(403, description="Bad session management token")
 
+
 def check_inv_token(session_id, pepper, inv_token):
     true_token = gen_session_inv_token(session_id, pepper)
     if inv_token != true_token:
         abort(403, description="Bad session token")
+
 
 @app.route(mgmt_url, methods=['GET', 'POST', 'DELETE'])
 def manage_session(session_id, pepper, mgmt_token):
@@ -384,6 +386,8 @@ def manage_session(session_id, pepper, mgmt_token):
         player_q = Player.query.filter(Player.session_id == session_id)
         if db.session.query(~player_q.exists()).scalar():
             return abort(409, "Cannot advance round without players")
+        # TODO delete scores if we're skipping ahead
+
         # if a scoring computation is running right now, this isn't allowed
         #  note that sess.round_scored being None is not an issue
         if sess.round_scored is False:
@@ -741,53 +745,64 @@ class DictionaryTask(celery.Task, ABC):
 
 @celery_app.task(base=DictionaryTask)
 def trigger_scoring(session_id, round_no, round_seed, dice_config):
-    logger.debug(
-        f"Received scoring request for session {session_id}, round {round_no}."
-    )
-    sess: BoggleSession = BoggleSession.for_update(session_id)
-
-    if sess.round_scored is not None:
+    try:
         logger.debug(
-            f"Scoring is already underway or finished for session {session_id},"
-            f" round {round_no}. Exiting early."
+            f"Received scoring request for session {session_id}, round {round_no}."
         )
-        # either we're already done scoring, or a computation is running
-        # regardless, we should relinquish the lock on the session table
+        sess: BoggleSession = BoggleSession.for_update(session_id)
+
+        if sess.round_scored is not None:
+            logger.debug(
+                f"Scoring is already underway or finished for session {session_id},"
+                f" round {round_no}. Exiting early."
+            )
+            # either we're already done scoring, or a computation is running
+            # regardless, we should relinquish the lock on the session table
+            db.session.commit()
+            return
+
+        # mark score computation as started and commit
+        #  to release the for update lock
+        sess.round_scored = False
         db.session.commit()
-        return
 
-    # mark score computation as started and commit
-    #  to release the for update lock
-    sess.round_scored = False
-    db.session.commit()
+        # run the scoring logic
+        by_player = retrieve_submitted_words(session_id, round_no)
+        # either there were no submissions, or the session was nixed
+        #  in between calls
+        if not by_player:
+            sess.round_scored = True
+            db.session.commit()
+            return
 
-    # run the scoring logic
-    by_player = retrieve_submitted_words(session_id, round_no)
-    # either there were no submissions, or the session was nixed
-    #  in between calls
-    if not by_player:
+        dice = dice_configs[dice_config]
+        dims, board = boggle_utils.roll(round_seed, dice_config=dice)
+
+        dictionary = None
+        if sess.dictionary is not None:
+            try:
+                dictionary = trigger_scoring.dictionaries[sess.dictionary]
+            except KeyError:
+                logger.warning(f"Failed to load dictionary {sess.dictionary}")
+
+        boggle_utils.score_players(by_player.values(), board, dictionary)
+
+        sess = BoggleSession.for_update(session_id, allow_nonexistent=True)
+        if sess is None:
+            abort(410, description="Session was killed unexpectedly")
+        # this update doesn't involve any cross-table shenanigans,
+        #  so bulk_save_objects is safe to use
+        db.session.bulk_save_objects(chain(*by_player.values()))
         sess.round_scored = True
         db.session.commit()
-        return
-
-    dice = dice_configs[dice_config]
-    dims, board = boggle_utils.roll(round_seed, dice_config=dice)
-
-    dictionary = None
-    if sess.dictionary is not None:
-        try:
-            dictionary = trigger_scoring.dictionaries[sess.dictionary]
-        except KeyError:
-            logger.warning(f"Failed to load dictionary {sess.dictionary}")
-
-    boggle_utils.score_players(by_player.values(), board, dictionary)
-
-    sess = BoggleSession.for_update(session_id, allow_nonexistent=True)
-    if sess is None:
-        abort(410, description="Session was killed unexpectedly")
-    # this update doesn't involve any cross-table shenanigans,
-    #  so bulk_save_objects is safe to use
-    db.session.bulk_save_objects(chain(*by_player.values()))
-    sess.round_scored = True
-    db.session.commit()
-    logger.debug(f"Finished scoring session {session_id}, round {round_no}.")
+        logger.debug(
+            f"Finished scoring session {session_id}, round {round_no}."
+        )
+    except Exception as e:
+        # bailing is not a problem, since the next GET request will simply
+        #  retrigger the computation if the issue is temporary (e.g. a
+        #  database shutdown)
+        logger.warning("Encountered failure during score computation", e)
+        db.session.rollback()
+    finally:
+        db.session.remove()
