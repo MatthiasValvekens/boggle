@@ -417,7 +417,8 @@ export const boggleController = function () {
                 let canAdvance = (status !== RoundState.SCORING) && (status !== RoundState.PRE_START);
                 $('#advance-round').prop("disabled", !canAdvance);
             }
-
+        }).always(function() {
+            // reschedule the timer, also on failures
             heartbeatTimer = setTimeout(heartbeat, BOGGLE_CONFIG.heartbeatTimeout);
             toggleBusy(false);
         });
