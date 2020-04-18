@@ -1,4 +1,12 @@
 import * as boggleModel from './boggle-model.js';
+export {RoundState} from './boggle-model.js';
+
+/**
+ * @typedef GUIStrings
+ * @property {function} statusString - Return status text for the given round state
+ * @property {string} notInDictionary - Return "not in dictionary" label
+ * @property {string} duplicates - Return "duplicates" label
+ */
 
 /**
  * Boggle configuration parameters.
@@ -6,12 +14,14 @@ import * as boggleModel from './boggle-model.js';
  * @type {Object}
  * @property {string} apiBaseURL - Base URL for the Boggle API
  * @property {int} heartbeatTimeout - Timeout in milliseconds between state polls.
+ * @property {GUIStrings} guiStrings - GUI string functions
  */
 export const BOGGLE_CONFIG = {
     apiBaseURL: "",
     heartbeatTimeout: 3000,
     emptyTimerString: '-:--',
-    statisticsEnabled: true
+    statisticsEnabled: true,
+    guiStrings: null
 };
 
 
@@ -364,25 +374,7 @@ export const boggleController = function () {
                     timerGoalValue = null;
             }
             // update status box
-            let statusBox = $('#status-box');
-            switch(status) {
-                case RoundState.INITIAL:
-                    statusBox.text('Wachten op startaankondiging...');
-                    break;
-                case RoundState.PRE_START:
-                    statusBox.text('Ronde begint zometeen...');
-                    break;
-                case RoundState.PLAYING:
-                    statusBox.text('Ronde bezig');
-                    break;
-                case RoundState.SCORING:
-                    statusBox.text('Wachten op scores...');
-                    break;
-                case RoundState.SCORED:
-                    statusBox.text('Scores binnen!');
-                default:
-                    break;
-            }
+            $('#status-box').text(BOGGLE_CONFIG.guiStrings.statusString(status));
 
             // update availability of submission textarea
             $('#words-container').toggle(status === RoundState.PLAYING);
@@ -519,7 +511,7 @@ export const boggleController = function () {
         let duplicates = '';
         if(roundScoreSummary.duplicates.size) {
             duplicates = `<div class="score-list-container">
-                <div class="field is-grouped is-grouped-multiline" data-header="Duplicaten">
+                <div class="field is-grouped is-grouped-multiline" data-header="${BOGGLE_CONFIG.guiStrings.duplicates}">
                     ${Array.from(roundScoreSummary.duplicates).map(
                 (x) => fmtBad(x, "is-info")).join('')}
                 </div>
@@ -532,7 +524,7 @@ export const boggleController = function () {
             let coreFmt = Array.from(roundScoreSummary.dictInvalidWords)
                             .map((x) => fmtBad(x, "is-danger")).join('');
             invalidWords = `<div class="score-list-container" ${manager ? 'id="dict-invalid"' : ''}>
-                <div class="field is-grouped is-grouped-multiline" data-header="Niet in woordenboek">${coreFmt}</div>
+                <div class="field is-grouped is-grouped-multiline" data-header="${BOGGLE_CONFIG.guiStrings.notInDictionary}">${coreFmt}</div>
             </div>${manager ? approveButton: ''}`;
         }
 
@@ -546,7 +538,7 @@ export const boggleController = function () {
                 <div class="media-content">
                     <div class="content">
                     <p>
-                        <strong>Ronde ${roundScoreSummary.roundNo}</strong><br>
+                        <strong>#${roundScoreSummary.roundNo}</strong><br>
                     </p>
                     <div class="player-scores">
                     ${gameState.playerList.map(fmtPlayer).join('')}

@@ -1,0 +1,143 @@
+# Dutch translations for PROJECT.
+# Copyright (C) 2020 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2020.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2020-04-19 01:28+0200\n"
+"PO-Revision-Date: 2020-04-19 01:27+0200\n"
+"Last-Translator: \n"
+"Language: nl\n"
+"Language-Team: nl <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.8.0\n"
+
+#: templates/boggle.html:144
+msgid "Not in dictionary"
+msgstr "Niet in woordenboek"
+
+#: templates/boggle.html:145
+msgid "Duplicates"
+msgstr "Duplicaten"
+
+#: templates/boggle.html:149
+msgid "Waiting for start announcement..."
+msgstr "Wachten op startaankondiging..."
+
+#: templates/boggle.html:151
+msgid "Round starting in a few moments..."
+msgstr "Ronde begint zometeen..."
+
+#: templates/boggle.html:153
+msgid "Round underway"
+msgstr "Ronde bezig"
+
+#: templates/boggle.html:155
+msgid "Waiting for scores..."
+msgstr "Wachten op scores..."
+
+#: templates/boggle.html:157
+msgid "The results are in!"
+msgstr "Scores binnen!"
+
+#: templates/boggle.html:198 templates/boggle.html:202
+msgid "Name"
+msgstr "Naam"
+
+#: templates/boggle.html:200
+msgid "Choose a username"
+msgstr "Kies een gebruikersnaam"
+
+#: templates/boggle.html:213
+msgid "Start new session"
+msgstr "Nieuwe sessie opstarten"
+
+#: templates/boggle.html:217
+msgid "select dice"
+msgstr "dobbelstenen selecteren"
+
+#: templates/boggle.html:219
+msgid "Dice"
+msgstr "Dobbelstenen"
+
+#: templates/boggle.html:229
+msgid "select dictionary"
+msgstr "woordenboek selecteren"
+
+#: templates/boggle.html:231
+msgid "Dictionary"
+msgstr "Woordenboek"
+
+#: templates/boggle.html:241 templates/boggle.html:266
+msgid "Start"
+msgstr "Start"
+
+#: templates/boggle.html:253
+msgid "Join existing session"
+msgstr "Aansluiten bij lopende sessie"
+
+#: templates/boggle.html:256
+msgid "Invitation token"
+msgstr "Uitnodigingstoken"
+
+#: templates/boggle.html:256 templates/boggle.html:339
+msgid "invitation token"
+msgstr "uitnodigingstoken"
+
+#: templates/boggle.html:261
+msgid "This invitation token is not valid."
+msgstr "Dit uitnodigingstoken is niet geldig."
+
+#: templates/boggle.html:299
+msgid "Add"
+msgstr "Toevoegen"
+
+#: templates/boggle.html:302
+msgid "Erase"
+msgstr "Wissen"
+
+#: templates/boggle.html:307
+msgid "Players"
+msgstr "Spelers"
+
+#: templates/boggle.html:315
+msgid "Words"
+msgstr "Woorden"
+
+#: templates/boggle.html:318
+msgid "Words..."
+msgstr "Woorden..."
+
+#: templates/boggle.html:333
+msgid "Management console"
+msgstr "Bedieningspaneel"
+
+#: templates/boggle.html:344
+msgid "Invitation token: click to copy"
+msgstr "Uitnodigingstoken: klik om te kopiëren"
+
+#: templates/boggle.html:357
+msgid "countdown to next round"
+msgstr "aftelling naar start volgende ronde"
+
+#: templates/boggle.html:362
+msgid ""
+"Number of seconds until next game round. If a round is currently "
+"underway, it will be suspended."
+msgstr ""
+"Aantal seconden tot volgende ronde. Als er momenteel een spelronde bezig "
+"is zal die eerst worden afgebroken."
+
+#: templates/boggle.html:370
+msgid "Announce"
+msgstr "Aankondigen"
+
+#~ msgid "invitiation token"
+#~ msgstr "uitnodigingstoken"
+

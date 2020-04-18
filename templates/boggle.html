@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-gb">
+<html lang="{{ active_lang }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -137,16 +137,38 @@
         <script type="text/javascript" src="/static/js/moment.js"></script>
         <script type="module">
             import * as boggle from '/static/js/boggle.js';
+            const controller = boggle.boggleController;
             boggle.BOGGLE_CONFIG.apiBaseURL = "{{ api_base_url }}";
+            /** @type {GUIStrings} */
+            boggle.BOGGLE_CONFIG.guiStrings = {
+                notInDictionary: "{% trans %}Not in dictionary{% endtrans %}",
+                duplicates: "{% trans %}Duplicates{% endtrans %}",
+                statusString: function(status) {
+                   switch(status) {
+                        case boggle.RoundState.INITIAL:
+                            return "{% trans %}Waiting for start announcement...{% endtrans %}";
+                        case boggle.RoundState.PRE_START:
+                            return "{% trans %}Round starting in a few moments...{% endtrans %}";
+                        case boggle.RoundState.PLAYING:
+                            return "{% trans %}Round underway{% endtrans %}";
+                        case boggle.RoundState.SCORING:
+                            return "{% trans %}Waiting for scores...{% endtrans %}";
+                        case boggle.RoundState.SCORED:
+                            return "{% trans %}The results are in!{% endtrans %}";
+                        default:
+                            throw "No GUI string available";
+                    }
+                }
+            };
             $(document).ready(
                 function() {
-                    boggle.boggleController.getOptions();
+                    controller.getOptions();
 
-                    $('#boggle').on('click', 'td', boggle.boggleController.touch.handleClick);
-                    $('#touch-input-append').click(boggle.boggleController.touch.appendInput);
-                    $('#touch-input-clear').click(boggle.boggleController.touch.clearInput);
-                    $('#join-session').click(boggle.boggleController.joinExistingSession);
-                    $('#advance-round').click(boggle.boggleController.advanceRound);
+                    $('#boggle').on('click', 'td', controller.touch.handleClick);
+                    $('#touch-input-append').click(controller.touch.appendInput);
+                    $('#touch-input-clear').click(controller.touch.clearInput);
+                    $('#join-session').click(controller.joinExistingSession);
+                    $('#advance-round').click(controller.advanceRound);
                     $('#inv-token-display-copy').click(function () {
                             const invTokenField = document.getElementById("inv-token-display");
                             invTokenField.select();
@@ -173,11 +195,11 @@
                 <div class="box">
                     <div class="columns is-centered">
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
-                            <h6 class="title is-4">Naam</h6>
+                            <h6 class="title is-4">{% trans %}Name{% endtrans %}</h6>
                             <div class="field">
-                                <label class="label" for="player-name-input">Kies een gebruikersnaam</label>
+                                <label class="label" for="player-name-input">{% trans %}Choose a username{% endtrans %}</label>
                                 <div class="control has-icons-left">
-                                    <input id="player-name-input" class="input" type="text" placeholder="Naam" required>
+                                    <input id="player-name-input" class="input" type="text" placeholder="{% trans %}Name{% endtrans %}" required>
                                     <span class="icon is-small is-left">
                                           <span class="fas fa-user"></span>
                                     </span>
@@ -188,13 +210,13 @@
                     <hr/>
                     <div class="columns is-centered">
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
-                            <h6 class="title is-4">Nieuwe sessie opstarten</h6>
+                            <h6 class="title is-4">{% trans %}Start new session{% endtrans %}</h6>
                             <div class="field has-addons">
                                 <div class="control is-expanded has-icons-left">
                                     <div class="select is-fullwidth" id="dice-config-select">
-                                        <select id="dice-config" aria-label="dobbelsteen selecteren" required>
+                                        <select id="dice-config" aria-label="{% trans %}select dice{% endtrans %}" required>
                                             <option value="" disabled selected hidden>
-                                                Dobbelstenen
+                                                {% trans %}Dice{% endtrans %}
                                             </option>
                                         </select>
                                     </div>
@@ -204,9 +226,9 @@
                                 </div>
                                 <div class="control is-expanded has-icons-left">
                                     <div class="select is-fullwidth" id="dictionary-select">
-                                        <select id="dictionary" aria-label="woordenboek selecteren" required>
+                                        <select id="dictionary" aria-label="{% trans %}select dictionary{% endtrans %}" required>
                                             <option value="" disabled selected hidden>
-                                                Woordenboek
+                                                {% trans %}Dictionary{% endtrans %}
                                             </option>
                                         </select>
                                     </div>
@@ -216,7 +238,7 @@
                                 </div>
                                 <div class="control">
                                     <button id="spawn-session" class="button is-primary" disabled>
-                                        <span>Start</span>
+                                        <span>{% trans %}Start{% endtrans %}</span>
                                         <span class="icon is-small">
                                             <span class="fas fa-chevron-right is-right"></span>
                                         </span>
@@ -228,20 +250,20 @@
                     <hr/>
                     <div class="columns is-centered">
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
-                            <h6 class="title is-4">Aansluiten bij lopende sessie</h6>
+                            <h6 class="title is-4">{% trans %}Join existing session{% endtrans %}</h6>
                             <div class="field has-addons">
                                 <div class="control is-expanded has-icons-left">
-                                    <input id="inv-token" class="input" type="text" placeholder="Uitnodigingstoken" pattern="\d+:[0-9a-f]{16}:[0-9a-f]{20}" size="40" aria-label="Uitnodigingstoken">
+                                    <input id="inv-token" class="input" type="text" placeholder="{% trans %}Invitation token{% endtrans %}" pattern="\d+:[0-9a-f]{16}:[0-9a-f]{20}" size="40" aria-label="{% trans %}invitation token{% endtrans %}">
                                     <span class="icon is-small is-left">
                                           <span class="fas fa-users"></span>
                                     </span>
                                     <p class="help is-danger" id="inv-token-error" style="display: none;">
-                                        Dit uitnodigingstoken is niet geldig.
+                                        {% trans %}This invitation token is not valid.{% endtrans %}
                                     </p>
                                 </div>
                                 <div class="control">
                                     <button id="join-session" class="button is-primary">
-                                        <span>Start</span>
+                                        <span>{% trans %}Start{% endtrans %}</span>
                                         <span class="icon is-small">
                                             <span class="fas fa-chevron-right is-right"></span>
                                         </span>
@@ -274,15 +296,15 @@
                             </table>
                             <div id="touch-input-buttons" class="buttons" style="visibility: hidden">
                                 <button class="button is-small is-success" id="touch-input-append">
-                                    Toevoegen
+                                    {% trans %}Add{% endtrans %}
                                 </button>
                                 <button class="button is-small is-light" id="touch-input-clear">
-                                    Wissen
+                                    {% trans %}Erase{% endtrans %}
                                 </button>
                             </div>
                         </div>
                         <div class="column is-4">
-                            <h6 class="has-text-weight-bold has-text-centered">Spelers</h6>
+                            <h6 class="has-text-weight-bold has-text-centered">{% trans %}Players{% endtrans %}</h6>
                             <div id="player-list">
                                 <ul>
                                 </ul>
@@ -290,10 +312,10 @@
                         </div>
                     </div>
                     <div id="words-container" style="display: none">
-                        <h2 class="subtitle has-text-centered"><label for="words">Woorden</label></h2>
+                        <h2 class="subtitle has-text-centered"><label for="words">{% trans %}Words{% endtrans %}</label></h2>
                         <div class="columns is-centered">
                             <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd">
-                                <textarea class="textarea" id="words" placeholder="Woorden..."></textarea>
+                                <textarea class="textarea" id="words" placeholder="{% trans %}Words...{% endtrans %}"></textarea>
                             </div>
                         </div>
                     </div>
@@ -308,18 +330,18 @@
         </section>
         <section class="section" id="manager-controls" style="display: none">
             <div class="container">
-                <h5 class="title is-5 has-text-centered">Bedieningspaneel</h5>
+                <h5 class="title is-5 has-text-centered">{% trans %}Management console{% endtrans %}</h5>
                 <div class="box">
                     <div class="columns is-centered">
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd">
                             <div class="field has-addons">
                                 <div class="control is-expanded has-icons-left">
-                                    <input id="inv-token-display" class="input" type="text" readonly aria-label="Uitnodigingstoken">
+                                    <input id="inv-token-display" class="input" type="text" readonly aria-label="{% trans %}invitation token{% endtrans %}">
                                     <span class="icon is-small is-left">
                                           <span class="fas fa-users"></span>
                                     </span>
                                     <p class="help">
-                                        Uitnodigingstoken: klik om te kopiëren
+                                        {% trans %}Invitation token: click to copy{% endtrans %}
                                     </p>
                                 </div>
                                 <div class="control">
@@ -332,18 +354,20 @@
                             </div>
                             <div class="field has-addons">
                                 <div class="control has-icons-left is-expanded">
-                                    <input class="input" type="number" id="round-announce-countdown" value="{{ default_countdown }}" aria-label="aftelling naar start volgende ronde">
+                                    <input class="input" type="number" id="round-announce-countdown" value="{{ default_countdown }}" aria-label="{% trans %}countdown to next round{% endtrans %}">
                                     <span class="icon is-left is-small">
                                         <span class="fas fa-stopwatch"></span>
                                     </span>
                                     <p class="help">
-                                        Aantal seconden tot volgende ronde.
-                                        Als er momenteel een spelronde bezig is zal die eerst worden afgebroken.
+                                        {% trans trimmed %}
+                                            Number of seconds until next game round.
+                                            If a round is currently underway, it will be suspended.
+                                        {% endtrans %}
                                     </p>
                                 </div>
                                 <div class="control">
                                     <button class="button is-primary" id="advance-round">
-                                        <span>Aankondigen</span>
+                                        <span>{% trans %}Announce{% endtrans %}</span>
                                         <span class="icon is-small">
                                             <span class="fas fa-chevron-right is-right"></span>
                                         </span>

@@ -12,6 +12,7 @@ from enum import IntEnum
 import celery
 
 from flask import Flask, abort, request, jsonify, render_template
+from flask_babel import Babel, get_locale
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import validates
@@ -31,6 +32,7 @@ app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config.from_object(config)
 app.config['SECRET_KEY'] = server_key = secrets.token_bytes(32)
 db = SQLAlchemy(app)
+babel = Babel(app, default_domain='boggle')
 
 DATE_FORMAT_STR = '%Y-%m-%d %H:%M:%S'
 MAX_NAME_LENGTH = 250
@@ -277,8 +279,19 @@ def gen_player_token(session_id, player_id, pepper):
 def index():
     return render_template(
         'boggle.html', api_base_url=app.config['API_BASE_URL'],
-        default_countdown=app.config['DEFAULT_COUNTDOWN_SECONDS']
+        default_countdown=app.config['DEFAULT_COUNTDOWN_SECONDS'],
+        active_lang=get_locale().language
     )
+
+
+@babel.localeselector
+def select_locale():
+    try:
+        return request.args['lang']
+    except KeyError:
+        return request.accept_languages.best_match(
+            app.config['BABEL_SUPPORTED_LOCALES']
+        )
 
 
 @app.route('/options', methods=['GET'])
