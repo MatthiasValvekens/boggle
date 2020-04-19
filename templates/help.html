@@ -1,6 +1,6 @@
 <div class="content">
     <h1>{% trans %}Rules{% endtrans %}</h1>
-    {% trans %}Here's a quick overview of the rules of <a href="https://en.wikipedia.org/wiki/Boggle">Boggle</a>.{% endtrans %}
+    {% trans %}Here's a quick overview of the rules of <a href="https://en.wikipedia.org/wiki/Boggle" target="_blank">Boggle</a>.{% endtrans %}
     <h2>{% trans %}Forming words{% endtrans %}</h2>
     <p>
     {% trans trimmed %}
@@ -42,7 +42,8 @@
 <div class="content">
     <h2>{% trans %}Scoring{% endtrans %}</h2>
     <p>
-    {% trans trimmed %}
+    {% trans trimmed duration=default_round_duration|format_timedelta %}
+        A Boggle round lasts {{ duration }} by default.
         You compete against the other players in your session, who'll also be looking for words in the same grid.<br/>
         Generally speaking, more and longer words = more points.
     {% endtrans %}
@@ -85,11 +86,18 @@
     <li>
         {% trans trimmed %}
             Words that can't be found in the dictionary won't earn you any points.
+            However, the session leader can <a href="#score-area-help">approve</a> words if necessary.
         {% endtrans %}
     </li>
     <li>
         {% trans trimmed %}
             Any word found by multiple players doesn't count.
+        {% endtrans %}
+    </li>
+    <li>
+        {% trans trimmed %}
+            The letter Q can also be used as QU.
+            In the latter case, it is counted as two letters for scoring purposes.
         {% endtrans %}
     </li>
     <li>
@@ -103,4 +111,67 @@
         {% endtrans %}
     </li>
     </ol>
+    <h1>{% trans %}Controls{% endtrans %}</h1>
+    <h2>{% trans %}Start screen{% endtrans %}</h2>
+    <p>
+    {% trans trimmed %}
+        First, choose an username. Your username is bound to the game session, so picking a unique one isn't that important.<br>
+        You can then do either of two things.
+    {% endtrans %}
+    </p>
+    <ul>
+        <li>
+            <b>{% trans %}Start a new session:{% endtrans %}</b> {% trans trimmed %}
+            If you'd like to start a new session, pick a <i>dice configuration</i> and a <i>dictionary</i>.
+            The dictionary (obviously) determines which words are considered valid, but the choice of dice configuration can also be important: the distribution of the letters of the alphabet is different from one language to the next, so it helps to choose a matching dice configuration.
+            {% endtrans %}
+        </li>
+        <li>
+            <b>{% trans %}Join an existing session:{% endtrans %}</b> {% trans trimmed %}
+            If you'd like to join an existing session set up by someone else, simply paste the <a href="#management-console-help">session invitation token</a> into the text box and click "Start".
+            {% endtrans %}
+        </li>
+    </ul>
+    <h2>{% trans %}Game screen{% endtrans %}</h2>
+    <h3>{% trans %}Boggle area{% endtrans %}</h3>
+    <p>
+    {% trans trimmed %}
+        Here, you see the currently active Boggle grid.
+        During a Boggle round, you can enter words by clicking/touching letter cells in the grid, or simply by typing them into the input box directly
+    {% endtrans %}
+    </p>
+    <p>
+    {% trans trimmed %}
+        The round ends by when the timer reaches zero; the words you selected are then submitted to the server for scoring.
+    {% endtrans %}
+    </p>
+    <p>
+    {% trans trimmed %}
+        The right column contains a list of all players in the session, together with their total scores (if applicable).
+    {% endtrans %}
+    </p>
+    {# TODO perhaps separate these into more specific help modals? Dunno if it really matters #}
+    <h3 id="score-area-help">{% trans %}Score area{% endtrans %}</h3>
+    <p>
+    {% trans trimmed %}
+        Below the game grid, a detailed score breakdown will appear after every round.
+        The words are colour-coded as follows:
+    {% endtrans %}
+        <span class="tag is-success">{% trans %}Valid{% endtrans %}</span>,
+        <span class="tag is-info">{% trans %}Duplicate{% endtrans %}</span>,
+        <span class="tag is-danger">{% trans %}Not in dictionary{% endtrans %}</span>,
+        <span class="tag is-dark">{% trans %}Not in grid{% endtrans %}</span>.
+    {% trans trimmed %}
+        Words that do not occur in the dictionary but are otherwise valid can be <i>manually approved</i> by the session leader, by clicking on them and selecting "Approve".
+    {% endtrans %}
+    </p>
+    <h3 id="management-console-help">{% trans %}Management console{% endtrans %}</h3>
+    <p>
+        {% trans trimmed %}
+            This area is only visible to the session leader.
+            It contains a text field with a <i>session invitation token</i>&mdash;which other players will need to join&mdash;and an <i>announcement timer</i>.
+            Clicking the "Announce" button will broadcast a countdown to all players in the session, and start the next round after the specified number of seconds has elapsed.
+            This can also be used to interrupt the current round, e.g. because the current grid is too difficult.
+        {% endtrans %}
+    </p>
 </div>

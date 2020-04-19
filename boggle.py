@@ -13,7 +13,7 @@ import celery
 from babel import Locale
 
 from flask import Flask, abort, request, jsonify, render_template
-from flask_babel import Babel, get_locale
+from flask_babel import Babel, get_locale, format_timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import validates
@@ -277,8 +277,10 @@ def gen_player_token(session_id, player_id, pepper):
 
 
 supported_locales = [
-    Locale.parse(l) for l in app.config['BABEL_SUPPORTED_LOCALES']
+    Locale.parse(locale) for locale in app.config['BABEL_SUPPORTED_LOCALES']
 ]
+
+app.add_template_filter(format_timedelta)
 
 
 @app.route('/', methods=['GET'])
@@ -288,7 +290,11 @@ def index():
         default_countdown=app.config['DEFAULT_COUNTDOWN_SECONDS'],
         active_locale=get_locale(),
         available_locales=supported_locales,
-        base_score_values=app.config['BASE_SCORE_VALUES']
+        # help template parameters
+        base_score_values=app.config['BASE_SCORE_VALUES'],
+        default_round_duration=timedelta(
+            minutes=app.config['ROUND_DURATION_MINUTES']
+        )
     )
 
 
@@ -551,6 +557,8 @@ def play(session_id, pepper, player_id, player_token):
     if sess is None:
         return abort(410, description="Session has ended")
 
+    # TODO how does leaving affect the effective_score view? We should
+    #  probably tweak the cascading settings accordingly
     if request.method == 'DELETE':
         # TODO can we somehow queue this in an elegant way?
         if sess.round_scored is False:
