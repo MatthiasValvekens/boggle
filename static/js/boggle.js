@@ -6,6 +6,7 @@ export {RoundState} from './boggle-model.js';
  * @property {function} statusString - Return status text for the given round state
  * @property {string} notInDictionary - Return "not in dictionary" label
  * @property {string} duplicates - Return "duplicates" label
+ * @property {string} approveButton - Return label for "approve" button
  */
 
 /**
@@ -462,14 +463,15 @@ export const boggleController = function () {
         } else clearHighlight();
     }
 
-    const approveButton = `
-        <button class="button is-primary is-small" id="approve-button" disabled>
-            Goedkeuren
-        </button>`;
     /**
      * @param {RoundScoreSummary} roundScoreSummary
      */
     function formatScores(roundScoreSummary) {
+
+        const approveButton = `
+        <button class="button is-primary is-small" id="approve-button" disabled>
+            ${BOGGLE_CONFIG.guiStrings.approveButton}
+        </button>`;
 
         function fmtBad(str, colClass) {
             return `<div class="control score"><div class="tags has-addons" translate="no">
