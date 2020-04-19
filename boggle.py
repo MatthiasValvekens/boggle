@@ -287,7 +287,8 @@ def index():
         'boggle.html', api_base_url=app.config['API_BASE_URL'],
         default_countdown=app.config['DEFAULT_COUNTDOWN_SECONDS'],
         active_locale=get_locale(),
-        available_locales=supported_locales
+        available_locales=supported_locales,
+        base_score_values=app.config['BASE_SCORE_VALUES']
     )
 
 
@@ -805,7 +806,11 @@ def trigger_scoring(session_id, round_no, round_seed, dice_config):
             except KeyError:
                 logger.warning(f"Failed to load dictionary {sess.dictionary}")
 
-        boggle_utils.score_players(by_player.values(), board, dictionary)
+        boggle_utils.score_players(
+            by_player.values(), board,
+            base_scores=app.config['BASE_SCORE_VALUES'],
+            dictionary=dictionary
+        )
 
         sess = BoggleSession.for_update(session_id, allow_nonexistent=True)
         if sess is None:

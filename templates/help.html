@@ -1,0 +1,106 @@
+<div class="content">
+    <h1>{% trans %}Rules{% endtrans %}</h1>
+    {% trans %}Here's a quick overview of the rules of <a href="https://en.wikipedia.org/wiki/Boggle">Boggle</a>.{% endtrans %}
+    <h2>{% trans %}Forming words{% endtrans %}</h2>
+    <p>
+    {% trans trimmed %}
+        The goal is to string together adjacent letters in the Boggle grid to form words.
+        You're allowed to move in any direction, including diagonally, and changing direction midway is of course also fine.
+        However, you're not allowed to visit the same grid cell twice to form a word!
+    {% endtrans %}
+    </p>
+    <p>{% trans %}Here's an example:{% endtrans %}</p>
+</div>
+<div class="columns">
+    <figure class="column">
+        <table class="boggle-grid" translate="no">
+            <tr><td data-order="1">T</td><td data-order="2">E</td><td>X</td><td>X</td></tr>
+            <tr><td data-order="3">S</td><td data-order="4">T</td><td>X</td><td>X</td></tr>
+            <tr><td>X</td><td>X</td><td>X</td><td>X</td></tr>
+            <tr><td>X</td><td>X</td><td>X</td><td>X</td></tr>
+        </table>
+        <figcaption class="has-text-success has-text-centered">
+            <span class="fas fa-check"></span>
+            {# i18n: Example in rules #}
+            {% trans %}OK{% endtrans %}
+        </figcaption>
+    </figure>
+    <figure class="column">
+        <table class="boggle-grid" translate="no">
+            <tr><td data-order="1,4">T</td><td data-order="2">E</td><td>X</td><td>X</td></tr>
+            <tr><td data-order="3">S</td><td>T</td><td>X</td><td>X</td></tr>
+            <tr><td>X</td><td>X</td><td>X</td><td>X</td></tr>
+            <tr><td>X</td><td>X</td><td>X</td><td>X</td></tr>
+        </table>
+        <figcaption class="has-text-danger has-text-centered">
+            <span class="fas fa-times"></span>
+            {# i18n: Example in rules #}
+            {% trans %}Not allowed{% endtrans %}
+        </figcaption>
+    </figure>
+</div>
+<div class="content">
+    <h2>{% trans %}Scoring{% endtrans %}</h2>
+    <p>
+    {% trans trimmed %}
+        You compete against the other players in your session, who'll also be looking for words in the same grid.<br/>
+        Generally speaking, more and longer words = more points.
+    {% endtrans %}
+    </p>
+    <p>{% trans %}The basic score per word is shown below.{% endtrans %}</p>
+</div>
+{# Bulma table centering doesn't work out of the box. Also text centering is weird in tables due to specificity issues, so we just stick it in a style="" tag #}
+<table class="table is-striped" style="margin-left: auto; margin-right: auto;">
+    <thead>
+    <tr>
+        <th style="text-align: center;">
+            {# i18n: scoring rules #}
+            {% trans %}Length{% endtrans %}
+        </th>
+        <th style="text-align: center;">
+            {# i18n: scoring rules #}
+            {% trans %}Value{% endtrans %}
+        </th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for length, score in base_score_values %}
+        <tr>
+            <td style="text-align: center;">
+                {% if loop.first %}&leq;{% elif loop.last %}&geq;{% endif %}
+                {{ length }}
+            </td>
+            <td style="text-align: center;">{{ score }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<div class="content">
+    <p>
+    {% trans trimmed %}
+        When calculating player scores, the following additional rules are taken into account.
+    {% endtrans %}
+    </p>
+    <ol>
+    <li>
+        {% trans trimmed %}
+            Words that can't be found in the dictionary won't earn you any points.
+        {% endtrans %}
+    </li>
+    <li>
+        {% trans trimmed %}
+            Any word found by multiple players doesn't count.
+        {% endtrans %}
+    </li>
+    <li>
+        {% trans trimmed %}
+            The player with the longest word gets <b>double</b> points for all words of that length.
+            However, if the longest word is tied between multiple players, no extra points are awarded.
+            For the purposes of this rule, only <i>valid, non-duplicate</i> words are counted.
+        {% endtrans %}
+        {% trans trimmed %}
+            This is easier to understand with an example: if player A and player B both found the same seven-letter word, but player A is the only one with a valid six-letter word, player A gets the bonus for their six-letter word.
+        {% endtrans %}
+    </li>
+    </ol>
+</div>

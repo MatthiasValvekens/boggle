@@ -84,14 +84,25 @@
                 position: fixed;
                 left: 0;
                 top: 0;
-                width: 100%;
-                height: 100%;
                 font-size: 300%;
                 z-index: 9999;
             }
 
             #loading-icon span {
                 padding: 0.5rem;
+            }
+
+            #help-button {
+                position: fixed;
+                right: 0;
+                top: 0;
+                font-size: 200%;
+                z-index: 9999;
+                cursor: pointer;
+            }
+
+            #help-button span {
+                padding: 1rem;
             }
 
             .score {
@@ -191,12 +202,37 @@
                             $('#inv-token-display-copy').addClass("is-success");
                         }
                     );
+                    $('#help-modal button.delete').click(function(){
+                            $('#help-modal').removeClass('is-active');
+                            $('#help-button').show();
+                        }
+                    );
+                    $('#help-button').click(function(){
+                            $('#help-modal').addClass('is-active');
+                            $(this).hide();
+                        }
+                    );
                 }
             );
         </script>
     </head>
     <body>
         <div id="loading-icon" style="display: none;"><span class="fas fa-pulse fa-spinner"></span></div>
+        <div id="help-button" class="has-text-grey-light"><span class="fas fa-question-circle"></span></div>
+        <div class="modal" id="help-modal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">{% trans %}Help{% endtrans %}</p>
+                    <button class="delete" aria-label="{% trans %}close{% endtrans %}"></button>
+                </header>
+                <section class="modal-card-body">
+                    <div style="padding-bottom: 5vh;">
+                        {% include 'help.html' %}
+                    </div>
+                </section>
+            </div>
+        </div>
         <section class="section" id="start-section">
             <div class="container">
                 <h1 class="title is-1 has-text-centered is-centered">

@@ -7,6 +7,8 @@ import os
 import logging
 import glob
 import re
+from typing import Tuple
+
 import unidecode
 
 logger = logging.getLogger(__name__)
@@ -143,25 +145,48 @@ class Pathfinder:
         return recurse(initial_points, word[start_at:])
 
 
-def score_word(word, solver):
-    w_paths = solver(word.replace('QU', 'Q'))
-    # matters for scoring
-    orig_len = len(word)
-    try:
-        path = next(w_paths)
-        if orig_len <= 4:
-            score = 1
-        elif orig_len == 5:
-            score = 2
-        elif orig_len == 6:
-            score = 3
-        elif orig_len == 7:
-            score = 5
-        else:
-            score = 11
-        return score, path
-    except StopIteration:
-        return 0, None
+# for easy inclusion in a template
+@dataclass(frozen=True)
+class BaseScores:
+    lower_lim: int
+    lower_lim_score: int
+    upper_lim_score: int
+    scores: Tuple[int, ...]
+
+    @property
+    def upper_lim(self) -> int:
+        return self.lower_lim + len(self.scores) + 1
+
+    def score_for_len(self, length):
+        if length <= self.lower_lim:
+            return self.lower_lim_score
+
+        try:
+            return self.scores[length - self.lower_lim - 1]
+        except IndexError:
+            return self.upper_lim_score
+
+    def score(self, word, solver):
+        w_paths = solver(word.replace('QU', 'Q'))
+        # matters for scoring
+        orig_len = len(word)
+        try:
+            path = next(w_paths)
+            return self.score_for_len(orig_len), path
+        except StopIteration:
+            return 0, None
+
+    # provided for template use
+    def __iter__(self):
+        yield self.lower_lim, self.lower_lim_score
+        for i, score in enumerate(self.scores):
+            yield self.lower_lim + i + 1, score
+        yield self.upper_lim, self.upper_lim_score
+
+STANDARD_SCORING = BaseScores(
+    lower_lim=4, lower_lim_score=1,
+    upper_lim_score=11, scores=(2, 3, 5)
+)
 
 
 @dataclass(frozen=True)
@@ -179,7 +204,8 @@ def duplicate_entries(itr):
         seen.add(i)
 
 
-def score_players(words_by_player, board, dictionary=None):
+def score_players(words_by_player, board, *, base_scores=STANDARD_SCORING,
+                  dictionary=None):
     # assume words are passed in as Word objects, 
     #  which we modify in-place
 
@@ -197,7 +223,7 @@ def score_players(words_by_player, board, dictionary=None):
     for w in chain(*words_by_player):
         wrapped = BoggleWord(w.word)
         cleaned = str(wrapped)
-        score, path = score_word(cleaned, solver)
+        score, path = base_scores.score(cleaned, solver)
         blacklisted = wrapped in blacklist
         # non-dictionary words do get a nonzero score, since they
         #  may be manually approved.

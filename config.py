@@ -3,6 +3,8 @@ from dataclasses import MISSING
 
 from kombu import Exchange, Queue
 
+import boggle_utils
+
 
 def get_env_setting(setting, default=MISSING):
     """ Get the environment setting or raise exception """
@@ -51,3 +53,4 @@ DICE_CONFIG_DIR = 'dice'
 DEFAULT_DICE_CONFIG = get_env_setting('DEFAULT_DICE_CONFIG', 'International')
 API_BASE_URL = get_env_setting('API_BASE_URL', '')
 DISABLE_ASYNC_SCORING = False
+BASE_SCORE_VALUES = boggle_utils.STANDARD_SCORING
