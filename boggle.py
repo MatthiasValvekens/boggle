@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from enum import IntEnum
 
 import celery
+from babel import Locale
 
 from flask import Flask, abort, request, jsonify, render_template
 from flask_babel import Babel, get_locale
@@ -275,12 +276,18 @@ def gen_player_token(session_id, player_id, pepper):
     return gen_salted_token(b'player', session_id, pepper, player_id)
 
 
+supported_locales = [
+    Locale.parse(l) for l in app.config['BABEL_SUPPORTED_LOCALES']
+]
+
+
 @app.route('/', methods=['GET'])
 def index():
     return render_template(
         'boggle.html', api_base_url=app.config['API_BASE_URL'],
         default_countdown=app.config['DEFAULT_COUNTDOWN_SECONDS'],
-        active_lang=get_locale().language
+        active_locale=get_locale(),
+        available_locales=supported_locales
     )
 
 

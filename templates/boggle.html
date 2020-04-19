@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ active_lang }}">
+<html lang="{{ active_locale.language }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -70,6 +70,14 @@
 
             #player-list li.me {
                 font-weight: bold;
+            }
+
+            #lang-select-container {
+                position: absolute;
+                padding-top: 1vh;
+                padding-left: 1vw;
+                left: 0;
+                top: 0;
             }
 
             #loading-icon {
@@ -190,9 +198,28 @@
         <div id="loading-icon" style="display: none;"><span class="fas fa-pulse fa-spinner"></span></div>
         <section class="section" id="start-section">
             <div class="container">
-                <h1 class="title is-1 has-text-centered">
+                <h1 class="title is-1 has-text-centered is-centered">
                     Boggle
                 </h1>
+                <div class="dropdown is-hoverable" id="lang-select-container">
+                    <div class="dropdown-trigger">
+                        <button class="button" aria-haspopup="true" aria-controls="lang-select-dropdown">
+                            <span class="icon is-small has-text-grey-light">
+                                <span class="fas fa-language"></span>
+                            </span>
+                            <span>{{ active_locale.display_name }}</span>
+                        </button>
+                    </div>
+                    <div class="dropdown-menu" id="lang-select-dropdown" role="menu">
+                        <div class="dropdown-content">
+                            {% for lang in available_locales %}
+                                <a class="dropdown-item" href="?lang={{ lang.language }}">
+                                    {{ lang.display_name }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
                 <div class="box">
                     <div class="columns is-centered">
                         <div class="column is-half-desktop is-three-quarters-tablet is-full-mobile is-one-third-fullhd has-text-centered">
