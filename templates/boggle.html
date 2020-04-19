@@ -202,16 +202,21 @@
                             $('#inv-token-display-copy').addClass("is-success");
                         }
                     );
-                    $('#help-modal button.delete').click(function(){
-                            $('#help-modal').removeClass('is-active');
-                            $('#help-button').show();
-                        }
-                    );
-                    $('#help-button').click(function(){
-                            $('#help-modal').addClass('is-active');
-                            $(this).hide();
-                        }
-                    );
+                    const helpButton = $('#help-button');
+                    helpButton.click(function() {
+                        $('#help-modal').addClass('is-active');
+                        helpButton.hide();
+                    });
+                    function closeModal() {
+                        $('#help-modal').removeClass('is-active');
+                        helpButton.show();
+                    }
+                    $('#help-modal button.delete').click(closeModal);
+                    $('#help-modal .modal-background').click(closeModal);
+                    $(document).keyup(function(key) {
+                        if(key.which === 27)
+                            closeModal();
+                    });
                 }
             );
         </script>
