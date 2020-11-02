@@ -7,7 +7,7 @@ from abc import ABC
 from collections import defaultdict
 from itertools import chain
 from datetime import datetime, timedelta
-from enum import IntEnum
+from enum import IntEnum, Enum, auto
 
 import celery
 from babel import Locale
@@ -71,6 +71,13 @@ def init_db():
                 logger.debug('Skipping effective scoring views...')
 
 
+class ScoringScheme(Enum):
+    BASIC = auto()
+    SQL = auto()
+    # alternative scoring scheme that awards points more easily
+    #  (only supported in the SQL scoring view, because meh)
+    SQL_MILD = auto()
+
 # adding before_first_request to init_db would cause this to be run
 #  for every worker, which isn't what we want.
 # In prod, a a CLI command seems to involve the least amount of hassle
@@ -99,6 +106,7 @@ class BoggleSession(db.Model):
     # TODO actually allow the user to specify this value
     round_minutes = db.Column(db.Integer, nullable=False,
                               default=app.config['ROUND_DURATION_MINUTES'])
+    use_mild_scoring = db.Column(db.Boolean, nullable=False, default=False)
 
     # volatile data
     round_no = db.Column(db.Integer, nullable=False, default=0)
@@ -132,7 +140,7 @@ class BoggleSession(db.Model):
         return self._submissions_pending(self.id, self.round_no)
 
     def __repr__(self):
-        fmt_ts = self.created.datetime.now().strftime(DATE_FORMAT_STR)
+        fmt_ts = self.created.now().strftime(DATE_FORMAT_STR)
         return '<Session %s>' % fmt_ts
 
 
@@ -176,7 +184,7 @@ class AbstractWord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     @declared_attr
-    def submission_id(self):
+    def submission_id(cls):
         return db.Column(
             db.Integer, db.ForeignKey('submission.id', ondelete="cascade"),
             nullable=False
@@ -231,11 +239,18 @@ class WordWithEffectiveScore(AbstractWord):
     submission = db.relationship(Submission)
 
     longest_bonus = db.Column(db.Boolean, nullable=False)
+    score_mild = db.Column(db.Integer, nullable=False)
 
     def score_json(self):
         result = super().score_json()
         result['longest_bonus'] = self.longest_bonus
         return result
+
+
+class WordWithEffectiveMildScore(WordWithEffectiveScore):
+    @property
+    def score(self):
+        return self.score_mild
 
 
 # wrapper around the statistics view
@@ -324,6 +339,7 @@ def spawn_session():
     no_dic_requested = False
     selected_dictionary = None
     selected_dice_config = app.config['DEFAULT_DICE_CONFIG']
+    use_mild_scoring = False
     if session_settings is not None:
         # set chosen dictionary
         try:
@@ -350,6 +366,8 @@ def spawn_session():
                 "not available."
             )
 
+        use_mild_scoring = session_settings.get('mild_scoring', False)
+
     if selected_dictionary is None and not no_dic_requested:
         try:
             selected_dictionary, = dicts_available
@@ -359,7 +377,8 @@ def spawn_session():
             pass
 
     new_session = BoggleSession(
-        dictionary=selected_dictionary, dice_config=selected_dice_config
+        dictionary=selected_dictionary, dice_config=selected_dice_config,
+        use_mild_scoring=use_mild_scoring
     )
     db.session.add(new_session)
     db.session.commit()
@@ -676,8 +695,13 @@ def approve_word(session_id, pepper, mgmt_token):
 
 def emit_scores(sess: BoggleSession):
     scored_sql = app.config['EFFECTIVE_SCORE_SQL']
+    if scored_sql:
+        scheme = ScoringScheme.SQL_MILD if sess.use_mild_scoring \
+            else ScoringScheme.SQL
+    else:
+        scheme = ScoringScheme.BASIC
     by_player = retrieve_submitted_words(
-        sess.id, round_no=sess.round_no, scored_sql=scored_sql
+        sess.id, round_no=sess.round_no, scoring_scheme=scheme
     )
     if scored_sql:
         def emitter():
@@ -729,8 +753,14 @@ def format_scores(by_player):
         } 
 
 
-def retrieve_submitted_words(session_id, round_no, scored_sql=False):
-    model = WordWithEffectiveScore if scored_sql else Word
+def retrieve_submitted_words(session_id, round_no,
+                             scoring_scheme=ScoringScheme.BASIC):
+    if scoring_scheme == ScoringScheme.SQL_MILD:
+        model = WordWithEffectiveMildScore
+    elif scoring_scheme == ScoringScheme.SQL:
+        model = WordWithEffectiveScore
+    else:
+        model = Word
 
     word_query = model.query.join(model.submission) \
         .join(Submission.player) \

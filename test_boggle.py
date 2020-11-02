@@ -120,11 +120,12 @@ def request_json(client, method, url, *args, data, headers=None, **kwargs):
     return req(url, *args, data=json.dumps(data), headers=req_headers, **kwargs)
 
 
-def create_session(client, dictionary=None, dice_config=None) -> SessionData:
+def create_session(client, dictionary=None, dice_config=None,
+                   use_mild_scoring=False) -> SessionData:
     with boggle.app.app_context():
         spawn_url = flask.url_for('spawn_session')
     dice_config = dice_config or DICE_CONFIG_DEFAULT
-    req_data = {'dice_config': dice_config}
+    req_data = {'dice_config': dice_config, 'mild_scoring': use_mild_scoring}
     if dictionary is not None:
         req_data['dictionary'] = dictionary
     response = request_json(client, 'post', spawn_url, data=req_data)
@@ -328,10 +329,14 @@ def test_wrong_player_token(client):
 
 # TODO: test statistics over multiple rounds
 
-@pytest.mark.parametrize('sql_scoring', [True, False])
-def test_single_player_scenario(client, sql_scoring):
+@pytest.mark.parametrize('scoring_scheme', list(boggle.ScoringScheme))
+def test_single_player_scenario(client, scoring_scheme):
+    sql_scoring = scoring_scheme != boggle.ScoringScheme.BASIC
     boggle.app.config['EFFECTIVE_SCORE_SQL'] = sql_scoring
-    gc = create_player_in_session(client, dictionary='testing')
+    mild = scoring_scheme == boggle.ScoringScheme.SQL_MILD
+    gc = create_player_in_session(
+        client, dictionary='testing', use_mild_scoring=mild
+    )
     # start the session
     response = client.post(gc.session.manage_url)
     assert response.status_code == 200
@@ -399,7 +404,10 @@ def test_single_player_scenario(client, sql_scoring):
     assert len(word3['path']) == 10
     assert not word3['duplicate']
     assert word3['dictionary_valid']
-    assert word3['score'] == 11 * 2  # double score bonus
+    if not mild:
+        assert word3['score'] == 11 * 2  # double score bonus
+    else:
+        assert word3['score'] == 11 * 3
     assert word3['longest_bonus']
 
     assert word1['word'] == 'ALGEIG'
@@ -413,7 +421,10 @@ def test_single_player_scenario(client, sql_scoring):
     assert not word2['duplicate']
     assert word2['dictionary_valid']
     # QU counts as two separate letters for scoring purposes
-    assert word2['score'] == 3
+    if mild:
+        assert word2['score'] == 6
+    else:
+        assert word2['score'] == 3
     # ... but the path should have length 5
     assert len(word2['path']) == 5
 
@@ -423,7 +434,10 @@ def test_single_player_scenario(client, sql_scoring):
     #  that there are many dictionary words that are valid both with and
     #  without Q
     assert word4['word'] in ('QLGE', 'QULGE')
-    assert word4['score'] in (1, 2)
+    if not mild:
+        assert word4['score'] in (1, 2)
+    else:
+        assert word4['score'] in (2, 4)
 
     assert word5['word'] == 'TLEGI'
     assert word5['path'] is not None
@@ -436,7 +450,10 @@ def test_single_player_scenario(client, sql_scoring):
         rdata = response.get_json()
         # account for the undefined value of QLGE/QULGE here
         #  TODO that's a good case for making this thing deterministic
-        assert rdata['total_scores'][0]['total_score'] in (26, 27)
+        if not mild:
+            assert rdata['total_scores'][0]['total_score'] in (26, 27)
+        else:
+            assert rdata['total_scores'][0]['total_score'] in (41, 43)
     else:
         assert response.status_code == 501
 
@@ -448,12 +465,18 @@ def test_single_player_scenario(client, sql_scoring):
     # check validity flag
     word5 = rdata['scores'][0]['words'][4]
     assert word5['dictionary_valid']
-    assert word5['score'] == 2
+    if mild:
+        assert word5['score'] == 4
+    else:
+        assert word5['score'] == 2
 
     response = client.get(gc.session.stats_url)
     if sql_scoring:
         rdata = response.get_json()
-        assert rdata['total_scores'][0]['total_score'] in (28, 29)
+        if not mild:
+            assert rdata['total_scores'][0]['total_score'] in (28, 29)
+        else:
+            assert rdata['total_scores'][0]['total_score'] in (45, 47)
     else:
         assert response.status_code == 501
 

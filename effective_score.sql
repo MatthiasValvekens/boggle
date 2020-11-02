@@ -19,24 +19,17 @@ create or replace view max_valid_lengths as
     ) as word_lens on submission.id = submission_id
     group by grouping sets ((session_id, round_no, submission.id), (session_id, round_no));
 
-create or replace view effective_scores as
+create or replace view scoring_aux_view as
     select
         word.id as id, word.word as word, 
-        submission_id, dictionary_valid, path_array, duplicate,
+        submission_id, dictionary_valid, path_array, duplicate, score,
         (
             dictionary_valid 
                 and path_array is not null 
                 and not duplicate 
                 and max_bonus.uniq 
                 and length(word.word) = max_bonus.round_max
-        ) as longest_bonus,
-        (
-            case 
-                when (not dictionary_valid or path_array is null or duplicate) then 0
-                when max_bonus.uniq and length(word.word) = max_bonus.round_max then (2 * score)
-                else score
-            end
-        ) as score
+        ) as longest_bonus
     from word
     join submission on submission.id = word.submission_id
     join player on player.id = submission.player_id
@@ -59,10 +52,38 @@ create or replace view effective_scores as
     ) as max_bonus using (session_id, round_no);
 
 
+create or replace view effective_scores as
+    select
+        id, word, submission_id, dictionary_valid, path_array, duplicate,
+        longest_bonus,
+        (
+            case 
+                when (not dictionary_valid or path_array is null or duplicate) then 0
+                when longest_bonus then (2 * score)
+                else score
+            end
+        ) as score,
+        (
+            case
+                when (not dictionary_valid or path_array is null) then 0
+                when longest_bonus then (3 * score)
+                when not duplicate then (2 * score)
+                else score
+            end
+        ) as score_mild
+    from scoring_aux_view;
+
+
 create or replace view statistics as
-    select player_id, round_no, coalesce(sum(word.score), 0) as total_score
+    select player_id, submission.round_no, (
+        case
+            when boggle_session.use_mild_scoring then coalesce(sum(word.score_mild), 0)
+            else coalesce(sum(word.score), 0)
+        end
+    ) as total_score
     from effective_scores as word
     join submission on submission.id = word.submission_id
     join player on player.id = submission.player_id
-    group by grouping sets ((player_id, round_no), (player_id));
+    join boggle_session on boggle_session.id = player.session_id
+    group by grouping sets ((player_id, submission.round_no, boggle_session.use_mild_scoring), (player_id, boggle_session.use_mild_scoring));
 
