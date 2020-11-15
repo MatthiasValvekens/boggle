@@ -228,7 +228,9 @@ def score_players(words_by_player, board, *, base_scores=STANDARD_SCORING,
         # non-dictionary words do get a nonzero score, since they
         #  may be manually approved.
         # Hence, the "proper" score still needs to be saved in the DB
-        w.score = score if not blacklisted else 0
+        # Similarly, we save the true score for duplicate entries,
+        # since under mild scoring rules, these may still count
+        w.score = score
         # path may still be valid, of course
         w.duplicate = blacklisted
         w.dictionary_valid = no_dict or cleaned in dictionary

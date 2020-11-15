@@ -192,7 +192,8 @@ export const boggleController = function () {
                         return;
                     const dictionary = $('#dictionary option:selected').val();
                     const diceConfig = $('#dice-config option:selected').val();
-                    spawnSession(name, diceConfig, dictionary);
+                    const mildScoring = $('#use-mild-scoring').is(':checked');
+                    spawnSession(name, diceConfig, dictionary, mildScoring);
                 }).prop("disabled", false);
             }
         )
@@ -203,11 +204,12 @@ export const boggleController = function () {
      * @param {!string} playerName
      * @param {!string} diceConfig
      * @param {?string} dictionary
+     * @param {!boolean} mildScoring
      */
-    function spawnSession(playerName, diceConfig, dictionary=null) {
+    function spawnSession(playerName, diceConfig, dictionary=null, mildScoring=false) {
         _sessionContext = null;
 
-        let data = {dice_config: diceConfig};
+        let data = {dice_config: diceConfig, mild_scoring: mildScoring};
         if(dictionary !== null)
             data.dictionary = dictionary;
         return callBoggleApi(

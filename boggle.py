@@ -714,10 +714,10 @@ def emit_scores(sess: BoggleSession):
                 }
         return emitter()
     else:
-        return format_scores(by_player)
+        return format_scores(by_player, sess.use_mild_scoring)
 
 
-def format_scores(by_player):
+def format_scores(by_player, use_mild_scoring):
     longest = 0
     longest_unique = True
 
@@ -740,6 +740,8 @@ def format_scores(by_player):
         def effective_scores():
             for w in words:
                 score_json = w.score_json()
+                if not use_mild_scoring and w.duplicate:
+                    score_json['score'] = 0
                 if longest_unique and len(w.word) == longest:
                     score_json['score'] *= 2
                     score_json['longest_bonus'] = True
