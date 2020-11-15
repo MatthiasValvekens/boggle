@@ -15,7 +15,7 @@ create or replace view max_valid_lengths as
     left join (
         select length(word) as word_len, submission_id
         from word
-        where (dictionary_valid and not duplicate and path_array is not null)
+        where (dictionary_valid and path_array is not null)
     ) as word_lens on submission.id = submission_id
     group by grouping sets ((session_id, round_no, submission.id), (session_id, round_no));
 
