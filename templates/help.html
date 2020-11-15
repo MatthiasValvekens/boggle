@@ -91,7 +91,7 @@
     </li>
     <li>
         {% trans trimmed %}
-            Any word found by multiple players doesn't count.
+            Any word found by multiple players doesn't count, unless the session was started with <i>mild scoring rules</i> enabled (see below).
         {% endtrans %}
     </li>
     <li>
@@ -108,6 +108,13 @@
         {% endtrans %}
         {% trans trimmed %}
             This is easier to understand with an example: if player A and player B both found the same seven-letter word, but player A is the only one with a valid six-letter word, player A gets the bonus for their six-letter word.
+        {% endtrans %}
+    </li>
+    <li>
+        {% trans trimmed %}
+            Under <i>mild scoring rules</i>, the score multiplier system is organised slightly differently.
+            In this case, duplicate words still award points, and unique words award double points.
+            The multiplier for having the unique word of maximal length is increased to three.
         {% endtrans %}
     </li>
     </ol>

@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2020-04-19 15:29+0200\n"
-"PO-Revision-Date: 2020-04-19 15:49+0200\n"
+"POT-Creation-Date: 2020-11-15 23:48+0100\n"
+"PO-Revision-Date: 2020-11-15 23:51+0100\n"
 "Last-Translator: \n"
 "Language: nl\n"
 "Language-Team: nl <LL@li.org>\n"
@@ -19,7 +19,7 @@ msgstr ""
 "Generated-By: Babel 2.8.0\n"
 "X-Generator: Poedit 2.3\n"
 
-#: templates/boggle.html:164 templates/help.html:162
+#: templates/boggle.html:164 templates/help.html:169
 msgid "Not in dictionary"
 msgstr "Niet in woordenboek"
 
@@ -87,67 +87,71 @@ msgstr "woordenboek selecteren"
 msgid "Dictionary"
 msgstr "Woordenboek"
 
-#: templates/boggle.html:311 templates/boggle.html:336
+#: templates/boggle.html:311 templates/boggle.html:341
 msgid "Start"
 msgstr "Start"
 
-#: templates/boggle.html:323
+#: templates/boggle.html:321
+msgid "Use mild scoring"
+msgstr "Gebruik mild scoresysteem"
+
+#: templates/boggle.html:328
 msgid "Join existing session"
 msgstr "Aansluiten bij lopende sessie"
 
-#: templates/boggle.html:326
+#: templates/boggle.html:331
 msgid "Invitation token"
 msgstr "Uitnodigingstoken"
 
-#: templates/boggle.html:326 templates/boggle.html:409
+#: templates/boggle.html:331 templates/boggle.html:414
 msgid "invitation token"
 msgstr "uitnodigingstoken"
 
-#: templates/boggle.html:331
+#: templates/boggle.html:336
 msgid "This invitation token is not valid."
 msgstr "Dit uitnodigingstoken is niet geldig."
 
-#: templates/boggle.html:369
+#: templates/boggle.html:374
 msgid "Add"
 msgstr "Toevoegen"
 
-#: templates/boggle.html:372
+#: templates/boggle.html:377
 msgid "Erase"
 msgstr "Wissen"
 
-#: templates/boggle.html:377
+#: templates/boggle.html:382
 msgid "Players"
 msgstr "Spelers"
 
-#: templates/boggle.html:385
+#: templates/boggle.html:390
 msgid "Words"
 msgstr "Woorden"
 
-#: templates/boggle.html:388
+#: templates/boggle.html:393
 msgid "Words..."
 msgstr "Woorden..."
 
-#: templates/boggle.html:403 templates/help.html:168
+#: templates/boggle.html:408 templates/help.html:175
 msgid "Management console"
 msgstr "Bedieningspaneel"
 
-#: templates/boggle.html:414
+#: templates/boggle.html:419
 msgid "Invitation token: click to copy"
 msgstr "Uitnodigingstoken: klik om te kopiëren"
 
-#: templates/boggle.html:427
+#: templates/boggle.html:432
 msgid "countdown to next round"
 msgstr "aftelling naar start volgende ronde"
 
-#: templates/boggle.html:432
+#: templates/boggle.html:437
 msgid ""
-"Number of seconds until next game round. If a round is currently "
-"underway, it will be suspended."
+"Number of seconds until next game round. If a round is currently underway, "
+"it will be suspended."
 msgstr ""
-"Aantal seconden tot volgende ronde. Als er momenteel een spelronde bezig "
-"is zal die eerst worden afgebroken."
+"Aantal seconden tot volgende ronde. Als er momenteel een spelronde bezig is "
+"zal die eerst worden afgebroken."
 
-#: templates/boggle.html:440
+#: templates/boggle.html:445
 msgid "Announce"
 msgstr "Aankondigen"
 
@@ -157,11 +161,11 @@ msgstr "Regels"
 
 #: templates/help.html:3
 msgid ""
-"Here's a quick overview of the rules of <a href=\"https://en.wikipedia."
-"org/wiki/Boggle\" target=\"_blank\">Boggle</a>."
+"Here's a quick overview of the rules of <a href=\"https://en.wikipedia.org/"
+"wiki/Boggle\" target=\"_blank\">Boggle</a>."
 msgstr ""
-"Hier is een kort overzicht van de regels van <a href=\"https://nl."
-"wikipedia.org/wiki/Boggle\" target=\"_blank\">Boggle</a>."
+"Hier is een kort overzicht van de regels van <a href=\"https://nl.wikipedia."
+"org/wiki/Boggle\" target=\"_blank\">Boggle</a>."
 
 #: templates/help.html:4
 msgid "Forming words"
@@ -169,17 +173,16 @@ msgstr "Woorden vormen"
 
 #: templates/help.html:6
 msgid ""
-"The goal is to string together adjacent letters in the Boggle grid to "
-"form words. You're allowed to move in any direction, including "
-"diagonally, and changing direction midway is of course also fine. "
-"However, you're not allowed to visit the same grid cell twice to form a "
-"word!"
+"The goal is to string together adjacent letters in the Boggle grid to form "
+"words. You're allowed to move in any direction, including diagonally, and "
+"changing direction midway is of course also fine. However, you're not "
+"allowed to visit the same grid cell twice to form a word!"
 msgstr ""
 "Het doel is om aangrenzende letters in het Bogglerooster aan elkaar te "
-"rijgen om woorden te vormen. Je mag in om het even welke richting "
-"bewegen, inclusief diagonaal, en van richting veranderen in het midden "
-"van een woord is uiteraard ook OK. Er is één beperking: voor een woord "
-"mag je elke cel in het rooster hoogstens één keer gebruiken!"
+"rijgen om woorden te vormen. Je mag in om het even welke richting bewegen, "
+"inclusief diagonaal, en van richting veranderen in het midden van een woord "
+"is uiteraard ook OK. Er is één beperking: voor een woord mag je elke cel in "
+"het rooster hoogstens één keer gebruiken!"
 
 #: templates/help.html:12
 msgid "Here's an example:"
@@ -200,19 +203,18 @@ msgstr "Puntentelling"
 #: templates/help.html:45
 #, python-format
 msgid ""
-"A Boggle round lasts %(duration)s by default. You compete against the "
-"other players in your session, who'll also be looking for words in the "
-"same grid.<br/> Generally speaking, more and longer words = more points."
+"A Boggle round lasts %(duration)s by default. You compete against the other "
+"players in your session, who'll also be looking for words in the same grid."
+"<br/> Generally speaking, more and longer words = more points."
 msgstr ""
 "Een Boggleronde duurt standaard %(duration)s. Je speelt tegen de andere "
-"spelers in je sessie, die ook in hetzelfde rooster naar woorden zoeken."
-"<br/> In het algemeen krijg je meer punten hoe langer je woorden zijn, "
-"en hoe meer woorden je vindt."
+"spelers in je sessie, die ook in hetzelfde rooster naar woorden zoeken.<br/> "
+"In het algemeen krijg je meer punten hoe langer je woorden zijn, en hoe meer "
+"woorden je vindt."
 
 #: templates/help.html:51
 msgid "The basic score per word is shown below."
-msgstr ""
-"De basisscore voor per woord kan je in de tabel hieronder terugvinden."
+msgstr "De basisscore voor per woord kan je in de tabel hieronder terugvinden."
 
 #: templates/help.html:59
 msgid "Length"
@@ -236,185 +238,201 @@ msgid ""
 "However, the session leader can <a href=\"#score-area-help\">approve</a> "
 "words if necessary."
 msgstr ""
-"Je krijgt geen punten voor woorden die niet in het woordenboek "
-"voorkomen. De sessieleider kan wel met de hand woorden <a href=\"#score-"
-"area-help\">goedkeuren</a> als dat nodig is."
+"Je krijgt geen punten voor woorden die niet in het woordenboek voorkomen. De "
+"sessieleider kan wel met de hand woorden <a href=\"#score-area-help"
+"\">goedkeuren</a> als dat nodig is."
 
 #: templates/help.html:93
-msgid "Any word found by multiple players doesn't count."
-msgstr "Een woord dat door meerdere spelers gevonden is telt niet mee."
+msgid ""
+"Any word found by multiple players doesn't count, unless the session was "
+"started with <i>mild scoring rules</i> enabled (see below)."
+msgstr ""
+"Woorden die door meerdere spelers gevonden zijn tellen niet mee, behalve als "
+"de sessie gestart is met het <i>milde scoresysteem</i> (zie onder)."
 
 #: templates/help.html:98
 msgid ""
-"The letter Q can also be used as QU. In the latter case, it is counted "
-"as two letters for scoring purposes."
+"The letter Q can also be used as QU. In the latter case, it is counted as "
+"two letters for scoring purposes."
 msgstr ""
 "De letter Q fungeert ook als QU. In dat laatste geval telt ze als twee "
 "letters in de scoreberekening."
 
 #: templates/help.html:104
 msgid ""
-"The player with the longest word gets <b>double</b> points for all words "
-"of that length. However, if the longest word is tied between multiple "
-"players, no extra points are awarded. For the purposes of this rule, "
-"only <i>valid, non-duplicate</i> words are counted."
+"The player with the longest word gets <b>double</b> points for all words of "
+"that length. However, if the longest word is tied between multiple players, "
+"no extra points are awarded. For the purposes of this rule, only <i>valid, "
+"non-duplicate</i> words are counted."
 msgstr ""
 "De speler met het langste woord krijgt <b>dubbele</b> punten voor alle "
-"woorden van die lengte. Als er echter meerdere spelers zijn die een "
-"woord van maximale lengte hebben krijgt niemand extra punten. Voor het "
-"toepassen van deze regel tellen enkel <i>geldige, unieke</i> woorden mee."
+"woorden van die lengte. Als er echter meerdere spelers zijn die een woord "
+"van maximale lengte hebben krijgt niemand extra punten. Voor het toepassen "
+"van deze regel tellen enkel <i>geldige, unieke</i> woorden mee."
 
 #: templates/help.html:109
 msgid ""
-"This is easier to understand with an example: if player A and player B "
-"both found the same seven-letter word, but player A is the only one with "
-"a valid six-letter word, player A gets the bonus for their six-letter "
-"word."
+"This is easier to understand with an example: if player A and player B both "
+"found the same seven-letter word, but player A is the only one with a valid "
+"six-letter word, player A gets the bonus for their six-letter word."
 msgstr ""
 "Dit is gemakkelijker om te begrijpen met een voorbeeld: als speler A en "
 "speler B allebei hetzelfde woord van zeven letters gevonden hebben, maar "
-"speler A is verder de enige met een geldig zesletterwoord, krijgt speler "
-"A de bonus voor zijn woorden van zes letters."
+"speler A is verder de enige met een geldig zesletterwoord, krijgt speler A "
+"de bonus voor zijn woorden van zes letters."
 
 #: templates/help.html:114
+msgid ""
+"Under <i>mild scoring rules</i>, the score multiplier system is organised "
+"slightly differently. In this case, duplicate words still award points, and "
+"unique words award double points. The multiplier for having the unique word "
+"of maximal length is increased to three."
+msgstr ""
+"Onder het <i>milde scoresysteem</i> zijn de vermenigvuldigingsfactoren voor "
+"de scores een beetje anders ingesteld. In dit geval tellen duplicaten gewoon "
+"mee, en krijg je dubbele punten voor unieke woorden. De bonusfactor voor het "
+"unieke woord van maximale lengte wordt daarnaast opgehoogd naar drie."
+
+#: templates/help.html:121
 msgid "Controls"
 msgstr "Controls"
 
-#: templates/help.html:115
+#: templates/help.html:122
 msgid "Start screen"
 msgstr "Startscherm"
 
-#: templates/help.html:117
+#: templates/help.html:124
 msgid ""
-"First, choose an username. Your username is bound to the game session, "
-"so picking a unique one isn't that important.<br> You can then do either "
-"of two things."
+"First, choose an username. Your username is bound to the game session, so "
+"picking a unique one isn't that important.<br> You can then do either of two "
+"things."
 msgstr ""
 "Kies eerst een gebruikersnaam. Je gebruikersnaam is gekoppeld aan de "
-"spelsessie, dus het is niet zo belangrijk om een unieke naam te kiezen."
-"<br> Je kan dan kiezen uit twee opties."
+"spelsessie, dus het is niet zo belangrijk om een unieke naam te kiezen.<br> "
+"Je kan dan kiezen uit twee opties."
 
-#: templates/help.html:124
+#: templates/help.html:131
 msgid "Start a new session:"
 msgstr "Een nieuwe sessie starten:"
 
-#: templates/help.html:124
+#: templates/help.html:131
 msgid ""
-"If you'd like to start a new session, pick a <i>dice configuration</i> "
-"and a <i>dictionary</i>. The dictionary (obviously) determines which "
-"words are considered valid, but the choice of dice configuration can "
-"also be important: the distribution of the letters of the alphabet is "
-"different from one language to the next, so it helps to choose a "
-"matching dice configuration."
+"If you'd like to start a new session, pick a <i>dice configuration</i> and a "
+"<i>dictionary</i>. The dictionary (obviously) determines which words are "
+"considered valid, but the choice of dice configuration can also be "
+"important: the distribution of the letters of the alphabet is different from "
+"one language to the next, so it helps to choose a matching dice "
+"configuration."
 msgstr ""
 "Als je een nieuwe sessie wil opstarten, kies dan een "
-"<i>dobbelsteenconfiguratie</i> en een <i>woordenboek</i>. Het "
-"woordenboek bepaalt (natuurlijk) welke woorden geldig zijn, maar de "
-"keuze van dobbelsteenconfiguratie kan ook van belang zijn: de verdeling "
-"van de letters van het alfabet verschilt van de ene taal op de andere, "
-"dus het helpt om een compatibele dobbelsteenconfiguratie te kiezen."
+"<i>dobbelsteenconfiguratie</i> en een <i>woordenboek</i>. Het woordenboek "
+"bepaalt (natuurlijk) welke woorden geldig zijn, maar de keuze van "
+"dobbelsteenconfiguratie kan ook van belang zijn: de verdeling van de letters "
+"van het alfabet verschilt van de ene taal op de andere, dus het helpt om een "
+"compatibele dobbelsteenconfiguratie te kiezen."
 
-#: templates/help.html:130
+#: templates/help.html:137
 msgid "Join an existing session:"
 msgstr "Aansluiten bij een lopende sessie:"
 
-#: templates/help.html:130
+#: templates/help.html:137
 msgid ""
 "If you'd like to join an existing session set up by someone else, simply "
-"paste the <a href=\"#management-console-help\">session invitation token</"
-"a> into the text box and click \"Start\"."
+"paste the <a href=\"#management-console-help\">session invitation token</a> "
+"into the text box and click \"Start\"."
 msgstr ""
-"Als je je liever aansluit bij een bestaande sessie die iemand anders "
-"heeft opgezet, plak dan het <a href=\"#management-console-help"
+"Als je je liever aansluit bij een bestaande sessie die iemand anders heeft "
+"opgezet, plak dan het <a href=\"#management-console-help"
 "\">uitnodigingstoken</a> in het tekstveld en klik op \"Start\"."
 
-#: templates/help.html:135
+#: templates/help.html:142
 msgid "Game screen"
 msgstr "Spelscherm"
 
-#: templates/help.html:136
+#: templates/help.html:143
 msgid "Boggle area"
 msgstr "Boggle-zone"
 
-#: templates/help.html:138
+#: templates/help.html:145
 msgid ""
-"Here, you see the currently active Boggle grid. During a Boggle round, "
-"you can enter words by clicking/touching letter cells in the grid, or "
-"simply by typing them into the input box directly"
+"Here, you see the currently active Boggle grid. During a Boggle round, you "
+"can enter words by clicking/touching letter cells in the grid, or simply by "
+"typing them into the input box directly"
 msgstr ""
 "Hier zie je het Bogglerooster dat momenteel actief is. Tijdens een "
-"Boggleronde kan je woorden invoeren door op letters te klikken of ze aan "
-"te raken, of simpelweg door ze rechtstreeks in te typen in het "
-"invoerveld."
+"Boggleronde kan je woorden invoeren door op letters te klikken of ze aan te "
+"raken, of simpelweg door ze rechtstreeks in te typen in het invoerveld."
 
-#: templates/help.html:144
+#: templates/help.html:151
 msgid ""
-"The round ends by when the timer reaches zero; the words you selected "
-"are then submitted to the server for scoring."
+"The round ends by when the timer reaches zero; the words you selected are "
+"then submitted to the server for scoring."
 msgstr ""
-"De ronde stopt wanneer de timer op nul staat; de woorden in het "
-"invoerveld worden dan naar de server gestuurd voor de puntentelling."
+"De ronde stopt wanneer de timer op nul staat; de woorden in het invoerveld "
+"worden dan naar de server gestuurd voor de puntentelling."
 
-#: templates/help.html:149
+#: templates/help.html:156
 msgid ""
 "The right column contains a list of all players in the session, together "
 "with their total scores (if applicable)."
 msgstr ""
-"De rechterkolom bevat een lijst met alle spelers in de sessie en hun "
-"totale score (indien van toepassing)."
+"De rechterkolom bevat een lijst met alle spelers in de sessie en hun totale "
+"score (indien van toepassing)."
 
-#: templates/help.html:154
+#: templates/help.html:161
 msgid "Score area"
 msgstr "Scorezone"
 
-#: templates/help.html:156
+#: templates/help.html:163
 msgid ""
 "Below the game grid, a detailed score breakdown will appear after every "
 "round. The words are colour-coded as follows:"
 msgstr ""
-"Onder het rooster komt een gedetailleerde breakdown van de scores na "
-"elke ronde. De kleurcodering van de woorden zit als volgt in elkaar:"
+"Onder het rooster komt een gedetailleerde breakdown van de scores na elke "
+"ronde. De kleurcodering van de woorden zit als volgt in elkaar:"
 
-#: templates/help.html:160
+#: templates/help.html:167
 msgid "Valid"
 msgstr "Geldig"
 
-#: templates/help.html:161
+#: templates/help.html:168
 msgid "Duplicate"
 msgstr "Dubbel"
 
-#: templates/help.html:163
+#: templates/help.html:170
 msgid "Not in grid"
 msgstr "Niet in rooster"
 
-#: templates/help.html:164
+#: templates/help.html:171
 msgid ""
 "Words that do not occur in the dictionary but are otherwise valid can be "
 "<i>manually approved</i> by the session leader, by clicking on them and "
 "selecting \"Approve\"."
 msgstr ""
-"Woorden die niet in het woordenboek staan maar verder wel geldig zijn "
-"kunnen door de spelleider <i>manueel goedgekeurd</i> worden, door erop "
-"te klikken en dan \"Goedkeuren\" te kiezen."
+"Woorden die niet in het woordenboek staan maar verder wel geldig zijn kunnen "
+"door de spelleider <i>manueel goedgekeurd</i> worden, door erop te klikken "
+"en dan \"Goedkeuren\" te kiezen."
 
-#: templates/help.html:170
+#: templates/help.html:177
 msgid ""
-"This area is only visible to the session leader. It contains a text "
-"field with a <i>session invitation token</i>&mdash;which other players "
-"will need to join&mdash;and an <i>announcement timer</i>. Clicking the "
-"\"Announce\" button will broadcast a countdown to all players in the "
-"session, and start the next round after the specified number of seconds "
-"has elapsed. This can also be used to interrupt the current round, e.g. "
-"because the current grid is too difficult."
+"This area is only visible to the session leader. It contains a text field "
+"with a <i>session invitation token</i>&mdash;which other players will need "
+"to join&mdash;and an <i>announcement timer</i>. Clicking the \"Announce\" "
+"button will broadcast a countdown to all players in the session, and start "
+"the next round after the specified number of seconds has elapsed. This can "
+"also be used to interrupt the current round, e.g. because the current grid "
+"is too difficult."
 msgstr ""
 "Dit gedeelte is enkel zichtbaar voor de sessieleider. Het bevat een "
-"tekstveld met een <i>uitnodigingstoken</i>&mdash;dat andere spelers "
-"nodig hebben om deel te nemen&mdash;en een <i>aankondigingstimer</i>. "
-"Als je op de knop \"Aankondigen\" klikt, wordt er een countdown timer "
-"doorgestuurd naar alle spelers in de sessie, en gaat de volgende ronde "
-"van start zodra die timer op nul staat. Je kan deze functie ook "
-"gebruiken om de huidige ronde te onderbreken, bijvoorbeeld omdat het "
-"rooster te moeilijk is."
+"tekstveld met een <i>uitnodigingstoken</i>&mdash;dat andere spelers nodig "
+"hebben om deel te nemen&mdash;en een <i>aankondigingstimer</i>. Als je op de "
+"knop \"Aankondigen\" klikt, wordt er een countdown timer doorgestuurd naar "
+"alle spelers in de sessie, en gaat de volgende ronde van start zodra die "
+"timer op nul staat. Je kan deze functie ook gebruiken om de huidige ronde te "
+"onderbreken, bijvoorbeeld omdat het rooster te moeilijk is."
 
 #~ msgid "invitiation token"
 #~ msgstr "uitnodigingstoken"
+
+#~ msgid "Any word found by multiple players doesn't count."
+#~ msgstr "Een woord dat door meerdere spelers gevonden is telt niet mee."
