@@ -14,7 +14,7 @@ import unidecode
 logger = logging.getLogger(__name__)
 
 
-def roll(seed, *, dice_config, board_dims=None):
+def roll(seed, *, vowel_proportion=0.375, dice_config, board_dims=None):
     num_dice = len(dice_config)
     if board_dims is not None:
         rows, cols = board_dims
@@ -33,10 +33,15 @@ def roll(seed, *, dice_config, board_dims=None):
         rows = cols = dice_sq
 
     rng = random.Random(seed)
-    random_dice = rng.sample(dice_config, len(dice_config))
-    flat_board = [
-        die[rng.randrange(len(die))] for die in random_dice
-    ]
+    while True:
+        random_dice = rng.sample(dice_config, len(dice_config))
+        flat_board = [
+            die[rng.randrange(len(die))] for die in random_dice
+        ]
+        vowel_count = sum(1 for x in flat_board if x in 'AEIOU')
+        if vowel_count / num_dice >= vowel_proportion:
+            break
+
     board_iter = iter(flat_board)
     board = [[ch for ch in islice(board_iter, cols)] for _ in range(rows)]
     return (rows, cols), board
